@@ -648,9 +648,9 @@ class CoreOrb{
     this.p={rot:0.4,exp:1,br:0.8,core:1,chaos:0.02,spoke:0.30,lg:0.2};
     this.tg=Object.assign({},this.p);
     // particles: mostly on the shell (ball surface) + some interior for depth
-    this.N=this.reduced?1500:3800; this.pts=new Array(this.N);
+    this.N=this.reduced?3200:8600; this.pts=new Array(this.N);
     for(let i=0;i<this.N;i++){ const u=Math.random(),v=Math.random();
-      const rr=Math.random()<0.82?(0.9+Math.random()*0.12):(0.25+Math.random()*0.6);
+      const rr=Math.random()<0.7?(0.88+Math.random()*0.14):(0.2+Math.random()*0.68);
       this.pts[i]={th:Math.acos(2*u-1),ph:2*Math.PI*v,rr,sp:0.5+Math.random(),sd:Math.random()*6.28}; }
     this.B=8; this.bk=[]; for(let i=0;i<this.B;i++) this.bk.push([]);
     this.spokes=[]; const NS=this.reduced?40:80;
@@ -658,12 +658,6 @@ class CoreOrb{
       this.spokes.push({a,len:0.5+Math.random()*0.55,ph:Math.random()*6.28,sp:0.4+Math.random()*1.4}); }
     this.strands=[]; for(let i=0;i<12;i++)
       this.strands.push({r:0.1+Math.random()*0.28,ph:Math.random()*6.28,sp:0.6+Math.random()*1.4,w:0.5+Math.random()});
-    // gyroscope rings (each with its own tilt + spin)
-    this.rings=[
-      {tx:0.16,tz:0.00,sp:1.00,ph:0.0,r:1.06,w:0.016,a:1.0},
-      {tx:1.25,tz:0.50,sp:-0.70,ph:1.5,r:1.00,w:0.013,a:0.9},
-      {tx:0.80,tz:-1.00,sp:0.55,ph:3.0,r:1.02,w:0.018,a:0.8}
-    ];
     this._loop=this._loop.bind(this); requestAnimationFrame(this._loop);
   }
   setState(s){ this.state=s;
@@ -728,19 +722,9 @@ class CoreOrb{
       let bi=((Z2+1)*0.5*B)|0; if(bi>=B)bi=B-1; if(bi<0)bi=0;
       bk[bi].push(cx+X*R*rf, cy+Y*R*rf); }
     for(let i=0;i<B;i++){ const t=i/(B-1), arr=bk[i];
-      x.fillStyle="rgba(255,"+((95+t*150)|0)+","+((25+t*115)|0)+","+((0.14+t*0.6)*br).toFixed(3)+")";
-      const sz=(0.9+t*1.9)*DPR*0.7, h=sz*0.5;
+      x.fillStyle="rgba(255,"+((95+t*150)|0)+","+((25+t*115)|0)+","+((0.09+t*0.46)*br).toFixed(3)+")";
+      const sz=(0.8+t*1.65)*DPR*0.7, h=sz*0.5;
       for(let j=0;j<arr.length;j+=2) x.fillRect(arr[j]-h,arr[j+1]-h,sz,sz); }
-
-    // gyroscope rings (amber bands)
-    for(const rg of this.rings){ const ang=this.angle*rg.sp+rg.ph, rca=Math.cos(ang), rsa=Math.sin(ang);
-      const ctx2=Math.cos(rg.tx), stx=Math.sin(rg.tx), ctz=Math.cos(rg.tz), stz=Math.sin(rg.tz);
-      x.lineWidth=R*rg.w; x.strokeStyle="rgba(255,180,80,"+(0.30*br*rg.a)+")"; x.beginPath();
-      const T=56; for(let k=0;k<=T;k++){ const th=6.2831853*k/T, x0=Math.cos(th), z0=Math.sin(th);
-        const y1=-z0*stx, z1=z0*ctx2, x2=x0*ctz-y1*stz, y2=x0*stz+y1*ctz;
-        const X=x2*rca+z1*rsa, Z=-x2*rsa+z1*rca, Y=y2*ct-Z*stt;
-        const px=cx+X*R*rg.r, py=cy+Y*R*rg.r; k?x.lineTo(px,py):x.moveTo(px,py); }
-      x.stroke(); }
 
     // listening ripple (blue)
     if(this.ripple>=0){ this.ripple+=0.02; const rr=this.ripple;
