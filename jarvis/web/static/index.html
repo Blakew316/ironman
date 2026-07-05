@@ -114,7 +114,7 @@ body{color:var(--white);letter-spacing:.06em}
 #weather{right:360px;top:150px;width:80px;height:44px;border:0;background:none;text-align:center}
 #weather .t{font-size:22px;color:var(--white);font-family:var(--mono)}
 #globe{right:300px;top:140px;width:210px;height:190px}
-#suits{right:16px;top:470px;width:280px;height:170px;border:0;background:none;display:flex;justify-content:space-around;align-items:flex-end;opacity:.55}
+#suits{display:none}
 #suits svg{height:150px}
 
 /* ---------- LEFT column ---------- */
@@ -242,6 +242,9 @@ body{color:var(--white);letter-spacing:.06em}
 
 #status{position:fixed;left:12px;bottom:8px;font-family:var(--mono);font-size:11px;color:var(--dim);z-index:41}
 #status b{color:var(--cyan)}
+#fsBtn{position:fixed;top:10px;right:12px;z-index:60;width:34px;height:34px;border:1px solid var(--stroke);
+  background:rgba(6,16,22,.82);color:var(--cyan);cursor:pointer;display:grid;place-items:center;font-size:17px;line-height:1}
+#fsBtn:hover{border-color:var(--cyan);box-shadow:0 0 14px rgba(42,212,255,.4)}
 </style>
 </head>
 <body>
@@ -628,6 +631,7 @@ body{color:var(--white);letter-spacing:.06em}
   <div id="mic" title="Hold to talk"><svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V21h2v-3.1A7 7 0 0 0 19 11z"/></svg></div>
 </div>
 <div id="status">LINK: <b id="linkState">…</b> · SAY <b>“jarvis”</b> OR TYPE</div>
+<div id="fsBtn" title="Toggle fullscreen">⛶</div>
 
 <script>
 "use strict";
@@ -648,14 +652,13 @@ class CoreOrb{
     this.p={rot:0.4,exp:1,br:0.8,core:1,chaos:0.02,spoke:0.30,lg:0.2};
     this.tg=Object.assign({},this.p);
     // particles: mostly on the shell (ball surface) + some interior for depth
-    this.N=this.reduced?3200:8600; this.pts=new Array(this.N);
+    this.N=this.reduced?3600:10000; this.pts=new Array(this.N);
     for(let i=0;i<this.N;i++){ const u=Math.random(),v=Math.random();
-      const rr=Math.random()<0.7?(0.88+Math.random()*0.14):(0.2+Math.random()*0.68);
+      const rr=Math.random()<0.86?(0.9+Math.random()*0.11):(0.35+Math.random()*0.55);
       this.pts[i]={th:Math.acos(2*u-1),ph:2*Math.PI*v,rr,sp:0.5+Math.random(),sd:Math.random()*6.28}; }
     this.B=8; this.bk=[]; for(let i=0;i<this.B;i++) this.bk.push([]);
-    this.spokes=[]; const NS=this.reduced?40:80;
-    for(let i=0;i<NS;i++){ const a=Math.random()<0.5?(Math.PI*0.5+(Math.random()-0.5)*1.8):Math.random()*6.28;
-      this.spokes.push({a,len:0.5+Math.random()*0.55,ph:Math.random()*6.28,sp:0.4+Math.random()*1.4}); }
+    this.spokes=[]; const NS=this.reduced?70:150;
+    for(let i=0;i<NS;i++) this.spokes.push({a:Math.random()*6.2831853,len:0.35+Math.random()*0.6,ph:Math.random()*6.28,sp:0.4+Math.random()*1.4});
     this.strands=[]; for(let i=0;i<12;i++)
       this.strands.push({r:0.1+Math.random()*0.28,ph:Math.random()*6.28,sp:0.6+Math.random()*1.4,w:0.5+Math.random()});
     this._loop=this._loop.bind(this); requestAnimationFrame(this._loop);
@@ -708,8 +711,8 @@ class CoreOrb{
 
     // radial spokes (amber)
     for(const s of this.spokes){ const fl=0.3+0.7*Math.abs(Math.sin(this.t*s.sp+s.ph));
-      const a=s.a+Math.sin(this.t*0.3+s.ph)*0.04, r0=R*0.24, r1=R*(0.55+s.len*0.45)*this.p.spoke*(0.8+0.4*fl);
-      x.strokeStyle="rgba(255,165,70,"+(0.04+0.12*fl*br)+")"; x.lineWidth=1;
+      const a=s.a+Math.sin(this.t*0.3+s.ph)*0.03, r0=R*0.12, r1=R*(0.55+s.len*0.43)*(0.85+0.25*fl);
+      x.strokeStyle="rgba(255,170,75,"+(0.03+0.09*fl*br)+")"; x.lineWidth=1;
       x.beginPath(); x.moveTo(cx+Math.cos(a)*r0,cy+Math.sin(a)*r0); x.lineTo(cx+Math.cos(a)*r1,cy+Math.sin(a)*r1); x.stroke(); }
 
     // particles → bucket by depth → batch fill (amber → yellow-white by depth)
@@ -722,8 +725,8 @@ class CoreOrb{
       let bi=((Z2+1)*0.5*B)|0; if(bi>=B)bi=B-1; if(bi<0)bi=0;
       bk[bi].push(cx+X*R*rf, cy+Y*R*rf); }
     for(let i=0;i<B;i++){ const t=i/(B-1), arr=bk[i];
-      x.fillStyle="rgba(255,"+((95+t*150)|0)+","+((25+t*115)|0)+","+((0.09+t*0.46)*br).toFixed(3)+")";
-      const sz=(0.8+t*1.65)*DPR*0.7, h=sz*0.5;
+      x.fillStyle="rgba(255,"+((100+t*150)|0)+","+((30+t*120)|0)+","+((0.13+t*0.55)*br).toFixed(3)+")";
+      const sz=(0.85+t*1.7)*DPR*0.7, h=sz*0.5;
       for(let j=0;j<arr.length;j+=2) x.fillRect(arr[j]-h,arr[j+1]-h,sz,sz); }
 
     // listening ripple (blue)
@@ -750,22 +753,6 @@ class CoreOrb{
     x.fillStyle=g; x.beginPath(); x.arc(cx,cy,cs*2.6,0,7); x.fill();
     x.fillStyle="rgba(255,255,255,"+Math.min(1,0.75*br+this.amp*0.25)+")";
     x.beginPath(); x.arc(cx,cy,cs*0.42,0,7); x.fill();
-
-    // ---- blue lightning ----
-    if(!this.reduced){
-      const rate=0.02+this.p.lg*0.14+(talk?this.amp*0.22:0);
-      if(Math.random()<rate) this._spawn(R, (talk||this.state==="thinking")&&Math.random()<0.5);
-      if(talk&&this.amp>0.95&&Math.random()<0.35) this._spawn(R,true);
-    }
-    x.lineJoin="round"; x.lineCap="round";
-    for(let i=this.bolts.length-1;i>=0;i--){ const b=this.bolts[i]; b.life++;
-      if(b.life>b.ttl){ this.bolts.splice(i,1); continue; }
-      const fl=(0.55+0.45*Math.random())*(1-b.life/b.ttl);
-      x.strokeStyle="rgba(70,150,255,"+(0.5*fl)+")"; x.lineWidth=R*0.022;
-      this._poly(x,b.p); for(const f of b.forks) this._poly(x,f);
-      x.strokeStyle="rgba(215,238,255,"+(0.95*fl)+")"; x.lineWidth=R*0.007;
-      this._poly(x,b.p); for(const f of b.forks) this._poly(x,f);
-    }
 
     requestAnimationFrame(this._loop);
   }
@@ -931,6 +918,10 @@ class CoreOrb{
   $("#mic").addEventListener("click",()=>listening?rec&&rec.stop():startListen());
   $("#jarvisCore").addEventListener("click",()=>listening?rec&&rec.stop():startListen());
   $("#core").addEventListener("click",()=>listening?rec&&rec.stop():startListen());
+  $("#fsBtn").addEventListener("click",()=>{ try{
+      if(!document.fullscreenElement){ (document.documentElement.requestFullscreen||document.documentElement.webkitRequestFullscreen).call(document.documentElement); }
+      else { (document.exitFullscreen||document.webkitExitFullscreen).call(document); }
+    }catch(e){} });
   $("#cmd").addEventListener("keydown",e=>{ if(e.key==="Enter"){ runCommand(e.target.value.trim()); e.target.value=""; }});
   $$("[data-url]").forEach(el=>el.addEventListener("click",()=>{ const u=el.dataset.url; if(u&&u!=="#") open(u,"_blank","noopener"); }));
   $$("[data-power]").forEach(el=>el.addEventListener("click",()=>{ const a=el.dataset.power;
