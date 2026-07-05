@@ -117,6 +117,38 @@ Say the wake word followed by a command. Some things you can ask:
 
 ---
 
+## Web HUD
+
+An animated, Iron-Man-style holographic dashboard you can talk to in the
+browser. It shows **live** system stats (CPU / RAM / SWAP / battery / disk /
+temperature), animated arc reactors, clocks and a network globe, and routes
+typed or spoken commands to the same J.A.R.V.I.S skills.
+
+```bash
+pip install -e ".[web,system]"
+jarvis-web            # opens http://127.0.0.1:8731 in your browser
+# or:  python -m jarvis.web   /   make web
+```
+
+- **Talk to it:** click the central *JARVIS* reactor (or the mic) and speak, or
+  type in the command bar. Replies are spoken aloud and shown on the HUD.
+- **Live data** comes from `psutil` via `/api/stats`; commands go through
+  `/api/command`. With no backend the page still runs in an animated *demo mode*.
+- Voice uses the browser's built-in Web Speech API (best in Chrome), so no
+  terminal microphone setup is needed.
+
+| Env var | Default | Purpose |
+|---|---|---|
+| `JARVIS_WEB_HOST` | `127.0.0.1` | bind address |
+| `JARVIS_WEB_PORT` | `8731` | port |
+| `JARVIS_WEB_NO_BROWSER` | `0` | set `1` to not auto-open the browser |
+| `JARVIS_WEB_ALLOW_POWER` | `0` | set `1` to allow shutdown/restart from the HUD |
+
+> The dashboard's layout is an original recreation inspired by a fan-made
+> Iron Man desktop theme; all graphics are drawn as original SVG/CSS.
+
+---
+
 ## Project structure
 
 ```text
@@ -130,13 +162,17 @@ jarvis/                     # the installable package
 │   ├── text2speech.py
 │   ├── playsounds.py
 │   └── playmusic.py
-└── skills/                 # concrete actions
-    ├── greet_startup.py    check_hardware.py   power_options.py
-    ├── get_weather.py      wolfram.py          take_notes.py
-    ├── google_calendar.py  tell_joke.py        take_screenshot.py
-    ├── datetime_info.py    wikipedia_search.py webbrowser_functions.py
-    ├── translate.py        text_extractor.py
-    └── systemcontrols/     # Windows-only media/volume/browser keys
+├── skills/                 # concrete actions
+│   ├── greet_startup.py    check_hardware.py   power_options.py
+│   ├── get_weather.py      wolfram.py          take_notes.py
+│   ├── google_calendar.py  tell_joke.py        take_screenshot.py
+│   ├── datetime_info.py    wikipedia_search.py webbrowser_functions.py
+│   ├── translate.py        text_extractor.py
+│   └── systemcontrols/     # Windows-only media/volume/browser keys
+└── web/                    # animated browser HUD (Flask backend + API)
+    ├── server.py           # serves the HUD, /api/stats, /api/command
+    ├── dispatch.py         # routes web commands to skills
+    └── static/index.html   # the self-contained HUD (SVG/CSS/JS)
 
 assets/                     # images, sounds, music, notes, screenshots
 tests/                      # pytest suite

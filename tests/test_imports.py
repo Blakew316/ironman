@@ -35,6 +35,9 @@ MODULES = [
     "jarvis.skills.systemcontrols.keyboard",
     "jarvis.skills.systemcontrols.key",
     "jarvis.skills.systemcontrols.systemcontrol",
+    "jarvis.web",
+    "jarvis.web.server",
+    "jarvis.web.dispatch",
 ]
 
 

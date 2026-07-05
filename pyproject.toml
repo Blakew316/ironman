@@ -36,6 +36,7 @@ calendar = [
     "google-auth-httplib2",
 ]
 config = ["python-dotenv"]
+web = ["flask>=2.0"]
 dev = ["pytest"]
 all = [
     "pyttsx3",
@@ -56,14 +57,16 @@ all = [
     "google-auth-oauthlib",
     "google-auth-httplib2",
     "python-dotenv",
+    "flask>=2.0",
 ]
 
 [project.scripts]
 jarvis = "jarvis.assistant:main"
+jarvis-web = "jarvis.web.server:main"
 
 [project.urls]
-Homepage = "https://kkshitiz.github.io/J.A.R.V.I.S/"
-Repository = "https://github.com/Blakew316/j.a.r.v.i.s"
+Homepage = "https://github.com/Blakew316/ironman"
+Repository = "https://github.com/Blakew316/ironman"
 
 [tool.setuptools.packages.find]
 include = ["jarvis*"]

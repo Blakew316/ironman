@@ -1,0 +1,755 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>J.A.R.V.I.S — S.H.I.E.L.D. OS</title>
+<style>
+:root{
+  --cyan:#2ad4ff; --cyan-dim:#1a8fb8; --cyan-deep:#0b3a4a;
+  --amber:#ff7b1e; --amber-dim:#b8571a;
+  --red:#ff4d4d; --white:#dff6ff; --grid:rgba(42,212,255,.10);
+  --stroke:rgba(42,212,255,.35); --stroke-soft:rgba(42,212,255,.16);
+  --panel:rgba(6,16,22,.55); --bg:#04070b; --dim:#5a8497;
+  --hud:'DIN Alternate','DIN Condensed','Oswald','Bebas Neue','Arial Narrow',sans-serif;
+  --mono:'SFMono-Regular','JetBrains Mono','Consolas',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);overflow:hidden;font-family:var(--hud)}
+body{color:var(--white);letter-spacing:.06em}
+::selection{background:var(--cyan);color:#02121a}
+
+/* stage scales a fixed 1920x1080 HUD to fit any viewport */
+#viewport{position:fixed;inset:0;display:grid;place-items:center;
+  background:
+    radial-gradient(1200px 700px at 50% 46%, rgba(20,60,80,.20), transparent 60%),
+    radial-gradient(900px 900px at 50% 120%, rgba(255,123,30,.05), transparent 60%),
+    #04070b;}
+#stage{position:relative;width:1920px;height:1080px;transform-origin:center center;
+  background:
+    linear-gradient(var(--grid) 1px,transparent 1px) 0 0/48px 48px,
+    linear-gradient(90deg,var(--grid) 1px,transparent 1px) 0 0/48px 48px,
+    radial-gradient(1400px 800px at 50% 44%, rgba(10,40,55,.35), transparent 70%);
+  filter:drop-shadow(0 0 1px rgba(42,212,255,.2));}
+#stage::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(0deg,rgba(0,0,0,.14) 0 1px,transparent 1px 3px);
+  mix-blend-mode:overlay;opacity:.5;animation:scan 8s linear infinite}
+@keyframes scan{from{background-position-y:0}to{background-position-y:1080px}}
+
+/* every direct child of the stage is absolutely placed on the 1920x1080 canvas */
+#stage>*{position:absolute}
+.panel{position:absolute;border:1px solid var(--stroke-soft);
+  background:linear-gradient(180deg,rgba(8,20,28,.6),rgba(4,10,14,.35));
+  box-shadow:inset 0 0 18px rgba(42,212,255,.06)}
+.corner{position:absolute;width:12px;height:12px;border:2px solid var(--cyan);opacity:.7}
+.tl{left:-1px;top:-1px;border-right:0;border-bottom:0}
+.tr{right:-1px;top:-1px;border-left:0;border-bottom:0}
+.bl{left:-1px;bottom:-1px;border-right:0;border-top:0}
+.br{right:-1px;bottom:-1px;border-left:0;border-top:0}
+.lbl{color:var(--cyan);font-size:12px;letter-spacing:.22em;text-transform:uppercase;opacity:.85}
+.val{color:var(--white);font-family:var(--mono)}
+.dim{color:var(--dim)}
+.amber{color:var(--amber)}
+.mono{font-family:var(--mono)}
+.glow{text-shadow:0 0 8px rgba(42,212,255,.7)}
+
+/* generic horizontal meter */
+.meter{height:9px;background:rgba(42,212,255,.08);border:1px solid var(--stroke-soft);position:relative;overflow:hidden}
+.meter>i{position:absolute;left:0;top:0;bottom:0;width:0%;
+  background:linear-gradient(90deg,var(--cyan-dim),var(--cyan));
+  box-shadow:0 0 10px rgba(42,212,255,.6);transition:width .6s cubic-bezier(.2,.7,.2,1)}
+.meter.amber>i{background:linear-gradient(90deg,var(--amber-dim),var(--amber));box-shadow:0 0 10px rgba(255,123,30,.6)}
+
+/* ---------- TOP LEFT: identity ---------- */
+#identity{left:26px;top:20px;width:340px;height:66px;display:flex;gap:12px;align-items:center;padding:8px 12px}
+#shield{width:50px;height:50px;flex:0 0 50px}
+#identity .who{font-size:15px;line-height:1.25;letter-spacing:.1em}
+#identity .who b{color:var(--cyan)}
+#identity .sub{font-size:11px;color:var(--dim);letter-spacing:.16em}
+.avatar{width:44px;height:44px;border:1px solid var(--stroke);margin-left:auto;
+  background:radial-gradient(circle at 50% 35%,#12303c,#050d12);position:relative;overflow:hidden}
+.avatar::before{content:"";position:absolute;left:50%;top:32%;width:16px;height:16px;transform:translateX(-50%);
+  border-radius:50%;background:#1c4a5c}
+.avatar::after{content:"";position:absolute;left:50%;bottom:-6px;width:30px;height:26px;transform:translateX(-50%);
+  border-radius:50% 50% 0 0;background:#1c4a5c}
+
+/* ---------- TOP BAR ---------- */
+#topbar{left:390px;top:16px;width:1130px;height:56px;border:0;background:none;display:flex;align-items:center;gap:14px}
+.ramtop{display:flex;align-items:center;gap:10px}
+.ramtop .ring{width:44px;height:44px}
+.sysbtns{display:flex;gap:2px;margin-left:4px}
+.sysbtn{font-size:12px;letter-spacing:.18em;padding:7px 12px;border:1px solid var(--stroke-soft);
+  color:var(--white);background:linear-gradient(180deg,rgba(10,26,34,.7),rgba(4,10,14,.4));cursor:pointer;transition:.2s}
+.sysbtn:hover{border-color:var(--cyan);color:var(--cyan);box-shadow:0 0 14px rgba(42,212,255,.25)}
+.icns{display:flex;gap:14px;align-items:center;margin-left:6px;opacity:.8}
+.icns svg{width:24px;height:24px}
+.apptiles{display:flex;gap:14px;margin-left:auto}
+.apptile{display:flex;align-items:center;gap:6px;font-size:12px;letter-spacing:.12em;color:var(--dim);cursor:pointer}
+.apptile:hover{color:var(--cyan)}
+.apptile .d{width:14px;height:14px;border:1px solid var(--stroke);display:grid;place-items:center}
+.apptile .d::after{content:"";width:5px;height:5px;background:var(--cyan);border-radius:50%}
+
+/* ---------- TOP RIGHT: date ---------- */
+#datebox{right:170px;top:16px;width:150px;height:96px;border:0;background:none;text-align:right}
+#datebox .day{font-size:74px;line-height:.8;font-weight:700;color:var(--white);letter-spacing:0}
+#datebox .mon{display:inline-block;margin-top:6px;background:var(--amber);color:#0a0a0a;font-size:15px;
+  padding:1px 8px;letter-spacing:.2em}
+#datebox .wk{font-size:13px;color:var(--dim);letter-spacing:.2em;display:block;margin-top:3px}
+#clocktop{right:16px;top:120px;width:150px;height:40px;border:0;background:none;text-align:right}
+#clocktop .t{font-size:30px;font-family:var(--mono);color:var(--cyan)}
+#clocktop .d{font-size:11px;color:var(--dim);letter-spacing:.18em}
+
+/* ---------- Right side stack ---------- */
+#speed{right:300px;top:96px;width:150px;height:52px;border:0;background:none;text-align:right;font-size:12px;color:var(--dim)}
+#speed b{color:var(--white)}
+#dwn{right:250px;top:92px;width:46px;height:46px}
+#filesys{right:16px;top:172px;width:280px;height:120px;padding:8px 12px}
+#filesys .row{display:flex;justify-content:space-between;font-size:12px;margin:5px 0}
+#disk{right:16px;top:300px;width:280px;height:150px;padding:8px 12px}
+#disk h4{font-size:12px;letter-spacing:.24em;color:var(--cyan);text-align:center;margin-bottom:6px}
+#disk .row{margin:8px 0}
+#disk .row .top{display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px}
+
+/* weather + globe */
+#weather{right:360px;top:150px;width:80px;height:44px;border:0;background:none;text-align:center}
+#weather .t{font-size:22px;color:var(--white);font-family:var(--mono)}
+#globe{right:300px;top:140px;width:210px;height:190px}
+#suits{right:16px;top:470px;width:280px;height:170px;border:0;background:none;display:flex;justify-content:space-around;align-items:flex-end;opacity:.55}
+#suits svg{height:150px}
+
+/* ---------- LEFT column ---------- */
+#apps{left:26px;top:110px;width:210px;height:280px;border:0;background:none;display:flex;flex-direction:column;gap:9px}
+.applaunch{position:relative;height:34px;display:flex;align-items:center;gap:10px;padding:0 12px;font-size:14px;
+  color:var(--white);letter-spacing:.1em;cursor:pointer;
+  background:linear-gradient(90deg,rgba(12,30,40,.85),rgba(6,14,20,.2));
+  clip-path:polygon(0 0,100% 0,92% 100%,0 100%);border-left:2px solid var(--cyan);transition:.2s}
+.applaunch:hover{background:linear-gradient(90deg,rgba(20,60,80,.95),rgba(6,14,20,.3));padding-left:18px;color:var(--cyan)}
+.applaunch .dot{width:7px;height:7px;border-radius:50%;background:var(--cyan);box-shadow:0 0 8px var(--cyan)}
+#stark{left:300px;top:150px;width:210px;height:34px;border:0;background:none;color:var(--cyan);
+  font-size:20px;letter-spacing:.12em;font-weight:700;opacity:.75}
+#stark span{font-size:11px;color:var(--dim);display:block;letter-spacing:.4em}
+#gear{left:300px;top:210px;width:180px;height:180px}
+#hex{left:40px;top:430px;width:220px;height:150px}
+
+/* ---------- CENTER ---------- */
+#system{left:470px;top:96px;width:230px;height:150px;padding:10px 14px}
+#system h4{font-size:13px;letter-spacing:.34em;text-align:center;color:var(--cyan);margin-bottom:10px}
+#system .row{margin:9px 0}
+#system .row .top{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px}
+#drive{left:470px;top:262px;width:230px;height:70px;padding:8px 14px}
+#drive .top{display:flex;justify-content:space-between;font-size:11px;color:var(--dim);margin-bottom:4px}
+
+#hero{left:660px;top:120px;width:600px;height:760px;border:0;background:none;pointer-events:none}
+#weblinks{left:770px;top:150px;width:150px;height:340px;border:0;background:none;text-align:center;pointer-events:auto}
+.weblink{font-size:15px;font-weight:700;letter-spacing:.16em;color:var(--white);cursor:pointer;padding:2px 0;transition:.15s}
+.weblink:hover{color:var(--cyan);text-shadow:0 0 10px var(--cyan)}
+.weblink.big{font-size:19px;color:var(--cyan)}
+
+#powerline{left:640px;top:915px;width:640px;text-align:center;border:0;background:none}
+#powerline .t{font-size:17px;letter-spacing:.12em;color:var(--white)}
+#powerline .t b{color:var(--cyan);font-family:var(--mono)}
+
+/* ---------- big reactors ---------- */
+#jarvisCore{left:150px;top:600px;width:360px;height:360px;cursor:pointer}
+#jarvisCore .label{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  font-size:30px;font-weight:700;letter-spacing:.34em;color:var(--white);text-shadow:0 0 18px var(--cyan);pointer-events:none}
+#social{right:120px;bottom:70px;width:320px;height:320px}
+.socname{position:absolute;font-size:12px;letter-spacing:.14em;color:var(--white);cursor:pointer;white-space:nowrap}
+.socname:hover{color:var(--amber);text-shadow:0 0 8px var(--amber)}
+
+/* ---------- BOTTOM BAR ---------- */
+#scaleL{left:14px;top:640px;width:40px;height:400px;border:0;background:none;
+  display:flex;flex-direction:column;justify-content:space-between;font-size:11px;color:var(--dim);font-family:var(--mono)}
+#bigclock{left:250px;bottom:26px;width:360px;height:150px;border:0;background:none}
+#bigclock .t{font-size:96px;font-family:var(--mono);font-weight:700;line-height:.9;color:var(--white);
+  text-shadow:0 0 22px rgba(42,212,255,.35)}
+#bigclock .t small{font-size:34px;color:var(--cyan)}
+#bigclock .sub{font-size:14px;color:var(--dim);letter-spacing:.2em;margin-top:4px}
+#cal{left:250px;bottom:150px;width:320px;height:52px;border:0;background:none}
+#cal table{width:100%;border-collapse:collapse;font-size:12px;font-family:var(--mono)}
+#cal td,#cal th{padding:2px 0;text-align:center;color:var(--dim)}
+#cal th{color:var(--cyan);font-weight:400}
+#cal td.on{background:var(--cyan);color:#04121a;border-radius:2px}
+#batt{left:250px;bottom:8px;width:300px;height:20px;border:0;background:none;font-size:12px;display:flex;gap:14px;color:var(--dim)}
+#batt b{color:var(--cyan)}
+
+#minicpu{left:640px;bottom:70px;width:150px;height:80px;padding:6px 10px}
+#minicpu .row{display:flex;justify-content:space-between;font-size:11px;margin:6px 0;color:var(--dim)}
+#wire{left:1030px;bottom:26px;width:150px;height:170px}
+#folders{right:470px;bottom:150px;width:210px;height:150px;border:0;background:none;
+  display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.folder{font-size:11px;letter-spacing:.08em;color:var(--dim);text-align:center;cursor:pointer}
+.folder:hover{color:var(--cyan)}
+.folder svg{width:34px;height:26px;display:block;margin:0 auto 2px}
+#player{right:150px;bottom:14px;width:260px;height:44px;border:0;background:none;display:flex;align-items:center;gap:14px}
+.tbtn{width:30px;height:30px;border:1px solid var(--stroke);border-radius:50%;display:grid;place-items:center;cursor:pointer;transition:.2s;background:rgba(8,20,28,.5)}
+.tbtn:hover{border-color:var(--cyan);box-shadow:0 0 12px rgba(42,212,255,.35)}
+.tbtn svg{width:14px;height:14px;fill:var(--cyan)}
+#pbar{flex:1;height:4px;background:rgba(42,212,255,.12);position:relative;overflow:hidden}
+#pbar>i{position:absolute;left:0;top:0;bottom:0;width:0;background:var(--cyan);box-shadow:0 0 8px var(--cyan);animation:play 60s linear infinite}
+@keyframes play{to{width:100%}}
+#power{right:16px;bottom:16px;width:70px;height:70px}
+
+/* ---------- voice / command dock ---------- */
+#voice{position:fixed;left:50%;bottom:12px;transform:translateX(-50%);width:min(520px,90vw);display:flex;gap:10px;align-items:center;z-index:40}
+#waves{display:flex;gap:3px;align-items:flex-end;height:26px;width:70px}
+#waves i{flex:1;background:var(--cyan);height:20%;box-shadow:0 0 6px var(--cyan);opacity:.6}
+#cmd{flex:1;background:rgba(6,16,22,.85);border:1px solid var(--stroke);color:var(--white);
+  font-family:var(--mono);font-size:14px;padding:9px 12px;letter-spacing:.04em;outline:none}
+#cmd::placeholder{color:var(--dim)}
+#mic{width:40px;height:40px;border:1px solid var(--stroke);background:rgba(6,16,22,.85);cursor:pointer;display:grid;place-items:center}
+#mic svg{width:18px;height:18px;fill:var(--cyan)}
+#mic.live{border-color:var(--cyan);box-shadow:0 0 16px rgba(42,212,255,.5);animation:pulse 1.2s infinite}
+@keyframes pulse{50%{box-shadow:0 0 26px rgba(42,212,255,.9)}}
+
+/* rotation helpers */
+.spin{transform-origin:50% 50%;animation:spin 18s linear infinite}
+.spin-r{transform-origin:50% 50%;animation:spin 26s linear infinite reverse}
+.spin-fast{transform-origin:50% 50%;animation:spin 8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.pulse{animation:reactor 2.6s ease-in-out infinite}
+@keyframes reactor{0%,100%{opacity:.55;filter:drop-shadow(0 0 6px var(--cyan))}50%{opacity:1;filter:drop-shadow(0 0 22px var(--cyan))}}
+.dash{stroke-dasharray:6 8;animation:dashmove 3s linear infinite}
+@keyframes dashmove{to{stroke-dashoffset:-56}}
+
+/* ---------- boot overlay ---------- */
+#boot{position:fixed;inset:0;background:#04070b;z-index:100;display:grid;place-items:center;
+  transition:opacity .8s ease;font-family:var(--mono)}
+#boot.hide{opacity:0;pointer-events:none}
+#boot .ring{width:180px;height:180px}
+#boot .log{position:absolute;left:50%;bottom:12%;transform:translateX(-50%);width:520px;font-size:12px;color:var(--cyan);
+  height:130px;overflow:hidden;text-align:left;line-height:1.7;opacity:.85}
+#boot .title{position:absolute;left:50%;top:24%;transform:translateX(-50%);text-align:center}
+#boot .title h1{font-family:var(--hud);font-size:44px;letter-spacing:.4em;color:var(--white);text-shadow:0 0 20px var(--cyan)}
+#boot .title p{color:var(--dim);letter-spacing:.5em;font-size:13px;margin-top:8px}
+
+#status{position:fixed;left:12px;bottom:8px;font-family:var(--mono);font-size:11px;color:var(--dim);z-index:41}
+#status b{color:var(--cyan)}
+</style>
+</head>
+<body>
+
+<div id="boot">
+  <svg class="ring" viewBox="0 0 100 100">
+    <circle cx="50" cy="50" r="46" fill="none" stroke="#0b3a4a" stroke-width="1"/>
+    <circle class="spin" cx="50" cy="50" r="40" fill="none" stroke="#2ad4ff" stroke-width="2" stroke-dasharray="30 220"/>
+    <circle class="spin-r" cx="50" cy="50" r="32" fill="none" stroke="#2ad4ff" stroke-width="1" stroke-dasharray="10 20" opacity=".7"/>
+    <circle class="pulse" cx="50" cy="50" r="10" fill="#2ad4ff"/>
+  </svg>
+  <div class="title"><h1>J.A.R.V.I.S</h1><p>S.H.I.E.L.D. OPERATING SYSTEM</p></div>
+  <div class="log" id="bootlog"></div>
+</div>
+
+<div id="viewport">
+<div id="stage">
+
+  <!-- identity -->
+  <div class="panel" id="identity">
+    <span class="corner tl"></span><span class="corner br"></span>
+    <svg id="shield" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="46" fill="none" stroke="#2ad4ff" stroke-width="3"/>
+      <circle cx="50" cy="50" r="34" fill="none" stroke="#2ad4ff" stroke-width="1.5" opacity=".6"/>
+      <path d="M50 20 L74 32 V54 C74 70 62 78 50 82 C38 78 26 70 26 54 V32 Z" fill="none" stroke="#2ad4ff" stroke-width="2"/>
+      <circle cx="50" cy="52" r="9" fill="#2ad4ff" class="pulse"/>
+      <path d="M50 30 L50 74 M32 45 L68 45" stroke="#04070b" stroke-width="2"/>
+    </svg>
+    <div>
+      <div class="who">Ironman <b>JARVIS</b><br>+ S.H.I.E.L.D. OS</div>
+      <div class="sub" id="idsub">… ONLINE …</div>
+    </div>
+    <div class="avatar"></div>
+  </div>
+
+  <!-- top bar -->
+  <div id="topbar">
+    <div class="ramtop">
+      <svg class="ring" viewBox="0 0 100 100" style="width:46px;height:46px">
+        <circle cx="50" cy="50" r="42" fill="none" stroke="#0b3a4a" stroke-width="6"/>
+        <circle id="ramTopArc" cx="50" cy="50" r="42" fill="none" stroke="#2ad4ff" stroke-width="6"
+          stroke-linecap="round" stroke-dasharray="264" stroke-dashoffset="132" transform="rotate(-90 50 50)"/>
+      </svg>
+      <div><div class="lbl">RAM Usage</div><div class="val glow" id="ramTopTxt">50%</div></div>
+    </div>
+    <div class="sysbtns">
+      <div class="sysbtn" data-power="shutdown">SHUTDOWN</div>
+      <div class="sysbtn" data-power="restart">RESTART</div>
+      <div class="sysbtn" data-power="logoff">LOG OFF</div>
+    </div>
+    <div class="icns">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#2ad4ff" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="#2ad4ff" stroke-width="1.5"><path d="M6 8h12l-1 11H7z"/><path d="M9 8V5h6v3"/></svg>
+    </div>
+    <div class="apptiles" id="apptiles"></div>
+  </div>
+
+  <!-- date / clock -->
+  <div id="datebox">
+    <div class="day" id="dDay">21</div>
+    <div class="mon" id="dMon">AUGUST</div>
+    <div class="wk" id="dWk">WEDNESDAY</div>
+  </div>
+  <div id="clocktop"><div class="t" id="cTop">23:52</div><div class="d" id="cTopSub">Tuesday</div></div>
+
+  <div id="speed">Speed:<b> 0.0 B</b><br>Total:<b id="netTotal">653.5 GB</b> <span class="cyan">DWN</span></div>
+  <svg id="dwn" viewBox="0 0 100 100">
+    <circle cx="50" cy="50" r="44" fill="none" stroke="#0b3a4a" stroke-width="4"/>
+    <circle class="spin" cx="50" cy="50" r="44" fill="none" stroke="#2ad4ff" stroke-width="4" stroke-dasharray="40 240"/>
+    <path d="M50 34 V60 M40 52 l10 10 10-10" stroke="#2ad4ff" stroke-width="3" fill="none"/>
+  </svg>
+
+  <div class="panel" id="filesys">
+    <span class="corner tl"></span><span class="corner br"></span>
+    <div class="lbl" style="text-align:center;margin-bottom:6px">File Systems</div>
+    <div id="fsRows"></div>
+  </div>
+
+  <div class="panel" id="disk">
+    <span class="corner tr"></span><span class="corner bl"></span>
+    <h4>DISK</h4>
+    <div id="diskRows"></div>
+  </div>
+
+  <!-- weather + globe -->
+  <div id="weather"><div class="t" id="temp">28°C</div><div class="dim" id="city">SURAT</div></div>
+  <svg id="globe" viewBox="0 0 220 200">
+    <g transform="translate(70 90)">
+      <circle r="52" fill="none" stroke="var(--stroke)" stroke-width="1"/>
+      <g class="spin" style="animation-duration:40s">
+        <ellipse rx="52" ry="20" fill="none" stroke="var(--stroke-soft)"/>
+        <ellipse rx="52" ry="38" fill="none" stroke="var(--stroke-soft)"/>
+        <ellipse rx="20" ry="52" fill="none" stroke="var(--stroke-soft)"/>
+        <ellipse rx="38" ry="52" fill="none" stroke="var(--stroke-soft)"/>
+        <line x1="-52" y1="0" x2="52" y2="0" stroke="var(--stroke-soft)"/>
+        <line x1="0" y1="-52" x2="0" y2="52" stroke="var(--stroke-soft)"/>
+      </g>
+      <circle r="52" fill="none" stroke="var(--cyan)" stroke-width="1" opacity=".4"/>
+    </g>
+    <path class="dash" d="M118 70 Q160 40 195 74" fill="none" stroke="var(--cyan)" stroke-width="1.5"/>
+    <circle cx="195" cy="74" r="3" fill="var(--amber)"/>
+    <text x="120" y="118" fill="var(--dim)" font-size="10" font-family="var(--mono)">116.73.198.72</text>
+  </svg>
+
+  <!-- suit silhouettes (original stylized) -->
+  <div id="suits">
+    <svg viewBox="0 0 60 150"><g fill="none" stroke="#2ad4ff" stroke-width="1.2" opacity=".8">
+      <path d="M30 6 C22 6 18 12 18 20 C18 27 22 30 30 30 C38 30 42 27 42 20 C42 12 38 6 30 6Z"/>
+      <path d="M22 30 L18 46 L16 90 L20 140 L26 140 L28 92 L32 92 L34 140 L40 140 L44 90 L42 46 L38 30"/>
+      <path d="M18 46 L8 60 L6 96 M42 46 L52 60 L54 96"/><circle cx="30" cy="52" r="4" fill="#2ad4ff"/>
+    </g></svg>
+    <svg viewBox="0 0 60 150"><g fill="none" stroke="#2ad4ff" stroke-width="1.2" opacity=".55">
+      <path d="M30 6 C22 6 18 12 18 20 C18 27 22 30 30 30 C38 30 42 27 42 20 C42 12 38 6 30 6Z"/>
+      <path d="M22 30 L18 46 L16 90 L20 140 L26 140 L28 92 L32 92 L34 140 L40 140 L44 90 L42 46 L38 30"/>
+      <path d="M18 46 L8 60 L6 96 M42 46 L52 60 L54 96"/></g></svg>
+    <svg viewBox="0 0 60 150"><g fill="none" stroke="#2ad4ff" stroke-width="1.2" opacity=".4">
+      <path d="M30 6 C22 6 18 12 18 20 C18 27 22 30 30 30 C38 30 42 27 42 20 C42 12 38 6 30 6Z"/>
+      <path d="M22 30 L18 46 L16 90 L20 140 L26 140 L28 92 L32 92 L34 140 L40 140 L44 90 L42 46 L38 30"/></g></svg>
+  </div>
+
+  <!-- left apps -->
+  <div id="apps">
+    <div class="applaunch" data-url="https://www.google.com/chrome/"><span class="dot"></span>Chrome</div>
+    <div class="applaunch" data-url="#"><span class="dot"></span>Control Panel</div>
+    <div class="applaunch" data-url="https://www.videolan.org/"><span class="dot"></span>VLC Player</div>
+    <div class="applaunch" data-url="https://www.mozilla.org/firefox/"><span class="dot"></span>Mozilla Firefox</div>
+    <div class="applaunch" data-url="#"><span class="dot"></span>uTorrent</div>
+    <div class="applaunch" data-url="#"><span class="dot"></span>Skype</div>
+  </div>
+  <div id="stark">STARK INDUSTRIES<span>ARC TECHNOLOGY</span></div>
+
+  <svg id="gear" viewBox="0 0 200 200">
+    <g class="spin" style="animation-duration:22s">
+      <circle cx="100" cy="100" r="70" fill="none" stroke="var(--stroke)"/>
+      <circle cx="100" cy="100" r="52" fill="none" stroke="var(--stroke-soft)" stroke-dasharray="4 6"/>
+      <g stroke="var(--cyan)" stroke-width="2">
+        <line x1="100" y1="20" x2="100" y2="42"/><line x1="100" y1="158" x2="100" y2="180"/>
+        <line x1="20" y1="100" x2="42" y2="100"/><line x1="158" y1="100" x2="180" y2="100"/>
+        <line x1="44" y1="44" x2="60" y2="60"/><line x1="140" y1="140" x2="156" y2="156"/>
+        <line x1="156" y1="44" x2="140" y2="60"/><line x1="60" y1="140" x2="44" y2="156"/>
+      </g>
+    </g>
+    <g class="spin-r" style="animation-duration:16s">
+      <circle cx="100" cy="100" r="34" fill="none" stroke="var(--cyan)" stroke-dasharray="20 12"/>
+    </g>
+    <circle cx="100" cy="100" r="16" fill="none" stroke="var(--cyan)" stroke-width="2" class="pulse"/>
+  </svg>
+
+  <svg id="hex" viewBox="0 0 220 150"></svg>
+
+  <!-- center system -->
+  <div class="panel" id="system">
+    <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+    <h4>SYSTEM</h4>
+    <div class="row"><div class="top"><span class="dim">CPU Usage</span><span class="val" id="cpuTxt">32%</span></div><div class="meter"><i id="cpuBar"></i></div></div>
+    <div class="row"><div class="top"><span class="dim">RAM Usage</span><span class="val" id="ramTxt">50%</span></div><div class="meter"><i id="ramBar"></i></div></div>
+    <div class="row"><div class="top"><span class="dim">SWAP Usage</span><span class="val" id="swapTxt">53%</span></div><div class="meter amber"><i id="swapBar"></i></div></div>
+  </div>
+  <div class="panel" id="drive">
+    <span class="corner tl"></span><span class="corner br"></span>
+    <div class="top"><span>DRIVE</span><span class="mono" id="driveTot">653.5 GB</span></div>
+    <div class="meter"><i id="driveBar" style="width:31%"></i></div>
+  </div>
+
+  <!-- hero figure : original stylized armored bust (own vector art) -->
+  <svg id="hero" viewBox="0 0 600 780">
+    <defs>
+      <radialGradient id="rg" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#eaffff"/><stop offset="30%" stop-color="#2ad4ff"/><stop offset="100%" stop-color="#06303f"/>
+      </radialGradient>
+      <linearGradient id="steel" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="rgba(42,212,255,.10)"/><stop offset="100%" stop-color="rgba(4,12,18,0)"/>
+      </linearGradient>
+      <filter id="hglow" x="-40%" y="-40%" width="180%" height="180%">
+        <feGaussianBlur stdDeviation="3.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+    </defs>
+
+    <g filter="url(#hglow)">
+    <!-- ===== TORSO / SHOULDERS ===== -->
+    <g fill="url(#steel)" stroke="#1f9dc4" stroke-width="1.5" opacity=".92">
+      <!-- collar / gorget -->
+      <path d="M250 452 L300 470 L350 452 L360 486 L300 508 L240 486 Z"/>
+      <!-- left pauldron -->
+      <path d="M240 486 C150 496 120 556 116 620 L112 780 L214 780 L226 600 C230 548 236 512 240 486Z"/>
+      <!-- right pauldron -->
+      <path d="M360 486 C450 496 480 556 484 620 L488 780 L386 780 L374 600 C370 548 364 512 360 486Z"/>
+      <!-- central chest plate -->
+      <path d="M240 486 L300 508 L360 486 L372 600 L360 690 L300 726 L240 690 L228 600 Z"/>
+    </g>
+    <!-- chest paneling -->
+    <g fill="none" stroke="#2ad4ff" stroke-width="1.1" opacity=".55">
+      <path d="M300 508 L300 560 M228 600 L372 600 M252 520 L268 574 M348 520 L332 574"/>
+      <path d="M214 560 L226 600 L214 660 M386 560 L374 600 L386 660"/>
+      <path d="M240 690 L300 660 L360 690 M300 660 L300 726"/>
+    </g>
+    <!-- red circuit accents (like the reference) -->
+    <g fill="none" stroke="#ff5a5a" stroke-width="1" opacity=".4">
+      <path d="M356 528 L372 600 L356 672 M330 690 L360 654 M300 726 L300 620"/>
+      <path d="M244 528 L228 600 L244 672"/>
+    </g>
+
+    <!-- ===== NECK ===== -->
+    <g fill="url(#steel)" stroke="#1f9dc4" stroke-width="1.4">
+      <path d="M270 424 L330 424 L336 460 L300 476 L264 460 Z"/>
+      <path d="M276 432 H324 M270 448 H330" fill="none" stroke="#2ad4ff" opacity=".5" stroke-width="1"/>
+    </g>
+
+    <!-- ===== HELMET ===== -->
+    <g fill="url(#steel)" stroke="#1f9dc4" stroke-width="1.7" opacity=".95">
+      <!-- outer helmet silhouette -->
+      <path d="M300 96
+        C244 96 210 132 204 196
+        C201 232 206 262 214 286
+        C220 306 226 322 236 336
+        L262 376 C272 392 286 400 300 400
+        C314 400 328 392 338 376
+        L364 336 C374 322 380 306 386 286
+        C394 262 399 232 396 196
+        C390 132 356 96 300 96 Z"/>
+    </g>
+    <!-- faceplate detail -->
+    <g fill="none" stroke="#2ad4ff" stroke-width="1.3" opacity=".7">
+      <!-- central seam -->
+      <path d="M300 104 L300 400"/>
+      <!-- brow band -->
+      <path d="M224 214 L300 200 L376 214"/>
+      <!-- cheek panels -->
+      <path d="M236 300 L262 376 M364 300 L338 376"/>
+      <path d="M300 300 L262 376 M300 300 L338 376"/>
+      <!-- crown vents -->
+      <path d="M270 120 L286 150 M330 120 L314 150 M300 108 L300 150"/>
+      <!-- jaw / mouth vents -->
+      <path d="M276 344 H324 M282 356 H318 M288 368 H312"/>
+    </g>
+    <!-- glowing eyes -->
+    <g class="pulse">
+      <path d="M232 232 L288 246 L286 276 L236 272 Z" fill="#eaffff"/>
+      <path d="M368 232 L312 246 L314 276 L364 272 Z" fill="#eaffff"/>
+    </g>
+    <g fill="none" stroke="#2ad4ff" stroke-width="1.4" opacity=".8">
+      <path d="M232 232 L288 246 L286 276 L236 272 Z"/>
+      <path d="M368 232 L312 246 L314 276 L364 272 Z"/>
+    </g>
+    </g><!-- /hglow -->
+
+    <!-- ===== CHEST ARC REACTOR ===== -->
+    <g transform="translate(300 604)" filter="url(#hglow)">
+      <circle r="70" fill="none" stroke="#1f9dc4" stroke-width="1.4" opacity=".7"/>
+      <circle class="spin" r="60" fill="none" stroke="#2ad4ff" stroke-width="2.5" stroke-dasharray="10 12"/>
+      <circle class="spin-r" r="46" fill="none" stroke="#2ad4ff" stroke-width="1.6" stroke-dasharray="5 8"/>
+      <g class="spin-fast">
+        <path d="M0 -38 L8 -20 L-8 -20 Z" fill="none" stroke="#2ad4ff" stroke-width="1.2"/>
+        <g transform="rotate(120)"><path d="M0 -38 L8 -20 L-8 -20 Z" fill="none" stroke="#2ad4ff" stroke-width="1.2"/></g>
+        <g transform="rotate(240)"><path d="M0 -38 L8 -20 L-8 -20 Z" fill="none" stroke="#2ad4ff" stroke-width="1.2"/></g>
+      </g>
+      <circle r="28" fill="url(#rg)" class="pulse"/>
+      <circle r="14" fill="#eaffff"/>
+      <path d="M0 -12 L10 6 L-10 6 Z" fill="#bff6ff"/>
+    </g>
+  </svg>
+
+  <!-- web links -->
+  <div id="weblinks">
+    <div class="weblink" data-url="https://google.com">GOOGLE</div>
+    <div class="weblink" data-url="https://gmail.com">GMAIL</div>
+    <div class="weblink" data-url="https://facebook.com">FACEBOOK</div>
+    <div class="weblink" data-url="https://youtube.com">YOUTUBE</div>
+    <div class="weblink" data-url="https://imdb.com">IMDB</div>
+    <div class="weblink" data-url="https://kickass.to">KAT</div>
+    <div class="weblink big">WEB</div>
+    <div class="weblink" data-url="https://9gag.com">9GAG</div>
+    <div class="weblink" data-url="#">PIRATE BAY</div>
+    <div class="weblink" data-url="#">STUMBLE UPON</div>
+    <div class="weblink" data-url="https://yahoo.com">YAHOO</div>
+    <div class="weblink" data-url="#">PUPIL POD</div>
+    <div class="weblink" data-url="https://wikipedia.org">WIKIPEDIA</div>
+  </div>
+  <div id="powerline"><div class="t">Currently power level is at <b id="plvl">100</b> percent and holding steady.</div></div>
+
+  <!-- JARVIS voice core -->
+  <div id="jarvisCore" title="Click to speak">
+    <svg viewBox="0 0 360 360" style="width:100%;height:100%">
+      <circle cx="180" cy="180" r="150" fill="none" stroke="#0b3a4a" stroke-width="2"/>
+      <circle class="spin" cx="180" cy="180" r="140" fill="none" stroke="#2ad4ff" stroke-width="3" stroke-dasharray="60 40" opacity=".8"/>
+      <circle class="spin-r" cx="180" cy="180" r="118" fill="none" stroke="#2ad4ff" stroke-width="1.5" stroke-dasharray="8 14"/>
+      <circle class="spin-fast" cx="180" cy="180" r="96" fill="none" stroke="#2ad4ff" stroke-width="1" stroke-dasharray="30 200" opacity=".7"/>
+      <circle cx="180" cy="180" r="74" fill="none" stroke="#1f9dc4" stroke-width="8" opacity=".25"/>
+      <circle id="jarvisArc" cx="180" cy="180" r="74" fill="none" stroke="#2ad4ff" stroke-width="8"
+        stroke-linecap="round" stroke-dasharray="465" stroke-dashoffset="0" transform="rotate(-90 180 180)"/>
+      <circle cx="180" cy="180" r="52" fill="url(#rg)" class="pulse"/>
+    </svg>
+    <div class="label">JARVIS</div>
+  </div>
+
+  <!-- social wheel -->
+  <div id="social">
+    <svg viewBox="0 0 320 320" style="width:100%;height:100%">
+      <circle cx="160" cy="160" r="150" fill="none" stroke="#3a1e0b" stroke-width="2"/>
+      <circle class="spin-r" cx="160" cy="160" r="140" fill="none" stroke="#ff7b1e" stroke-width="3" stroke-dasharray="50 30" opacity=".8"/>
+      <circle class="spin" cx="160" cy="160" r="116" fill="none" stroke="#ff7b1e" stroke-width="1.5" stroke-dasharray="6 12"/>
+      <circle cx="160" cy="160" r="88" fill="none" stroke="#b8571a" stroke-width="6" opacity=".3"/>
+      <circle class="spin-fast" cx="160" cy="160" r="88" fill="none" stroke="#ff7b1e" stroke-width="6"
+        stroke-linecap="round" stroke-dasharray="120 300"/>
+      <circle cx="160" cy="160" r="60" fill="none" stroke="#ff7b1e" stroke-width="1"/>
+      <circle cx="160" cy="160" r="22" fill="#ff7b1e" class="pulse"/>
+    </svg>
+    <div class="socname" style="right:2px;top:20px" data-url="https://gmail.com">◦ Mail</div>
+    <div class="socname" style="right:-6px;top:80px" data-url="https://google.com">◦ Google</div>
+    <div class="socname" style="right:-16px;top:140px" data-url="https://deviantart.com">◦ Deviantart</div>
+    <div class="socname" style="right:-10px;top:200px" data-url="https://youtube.com">◦ Youtube</div>
+    <div class="socname" style="right:4px;top:250px" data-url="https://twitter.com">◦ Twitter</div>
+    <div class="socname" style="right:24px;top:292px" data-url="https://facebook.com">◦ Facebook</div>
+  </div>
+
+  <!-- bottom bar -->
+  <div id="scaleL"><span>100</span><span>80</span><span>60</span><span>40</span><span>20</span><span>0</span><span>20</span><span>40</span><span>60</span><span>80</span><span>100</span></div>
+
+  <div id="cal"><table id="calTable"></table></div>
+  <div id="bigclock"><div class="t" id="bigT">11:52<small id="bigAP">PM</small></div><div class="sub" id="bigSub">20-Aug, Tuesday</div></div>
+  <div id="batt"><span>BATTERY <b id="battTxt">100%</b></span><span>AC LINE <b id="acTxt">yes</b></span></div>
+
+  <div class="panel" id="minicpu">
+    <span class="corner tl"></span><span class="corner br"></span>
+    <div class="row"><span>CPU</span><span class="mono" id="miniCpu">32%</span></div>
+    <div class="row"><span>RAM</span><span class="mono" id="miniRam">50%</span></div>
+    <div class="row"><span>TEMP</span><span class="mono amber" id="miniTemp">—</span></div>
+  </div>
+
+  <svg id="wire" viewBox="0 0 150 170">
+    <g class="spin" style="animation-duration:30s" transform="translate(75 80)">
+      <ellipse rx="45" ry="55" fill="none" stroke="var(--stroke-soft)"/>
+      <ellipse rx="30" ry="55" fill="none" stroke="var(--stroke-soft)"/>
+      <ellipse rx="15" ry="55" fill="none" stroke="var(--stroke-soft)"/>
+      <ellipse rx="45" ry="20" fill="none" stroke="var(--stroke-soft)"/>
+      <ellipse rx="45" ry="40" fill="none" stroke="var(--stroke-soft)"/>
+    </g>
+    <circle cx="75" cy="80" r="45" fill="none" stroke="var(--cyan)" opacity=".4"/>
+  </svg>
+
+  <div id="folders">
+    <div class="folder" data-url="#"><svg viewBox="0 0 34 26" fill="none" stroke="#2ad4ff"><path d="M2 6h10l3 3h17v14H2z"/></svg>Downloads</div>
+    <div class="folder" data-url="https://dropbox.com"><svg viewBox="0 0 34 26" fill="none" stroke="#2ad4ff"><path d="M2 6h10l3 3h17v14H2z"/></svg>Dropbox</div>
+    <div class="folder" data-url="#"><svg viewBox="0 0 34 26" fill="none" stroke="#2ad4ff"><path d="M2 6h10l3 3h17v14H2z"/></svg>Music</div>
+    <div class="folder" data-url="#"><svg viewBox="0 0 34 26" fill="none" stroke="#2ad4ff"><path d="M2 6h10l3 3h17v14H2z"/></svg>Documents</div>
+    <div class="folder" data-url="#"><svg viewBox="0 0 34 26" fill="none" stroke="#2ad4ff"><path d="M2 6h10l3 3h17v14H2z"/></svg>Pictures</div>
+    <div class="folder" data-url="#"><svg viewBox="0 0 34 26" fill="none" stroke="#2ad4ff"><path d="M2 6h10l3 3h17v14H2z"/></svg>Videos</div>
+  </div>
+
+  <div id="player">
+    <div class="tbtn" data-media="prev"><svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm12 0v12l-9-6z"/></svg></div>
+    <div class="tbtn" id="playBtn" data-media="play"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div>
+    <div class="tbtn" data-media="next"><svg viewBox="0 0 24 24"><path d="M16 6h2v12h-2zM6 6l9 6-9 6z"/></svg></div>
+    <div id="pbar"><i></i></div>
+  </div>
+
+  <svg id="power" viewBox="0 0 70 70">
+    <circle cx="35" cy="35" r="30" fill="none" stroke="var(--stroke)"/>
+    <circle class="spin" cx="35" cy="35" r="24" fill="none" stroke="var(--cyan)" stroke-dasharray="20 14"/>
+    <path d="M35 20 V36" stroke="var(--cyan)" stroke-width="3" stroke-linecap="round"/>
+    <path d="M24 26 A16 16 0 1 0 46 26" fill="none" stroke="var(--cyan)" stroke-width="3"/>
+  </svg>
+
+</div><!-- /stage -->
+</div><!-- /viewport -->
+
+<!-- voice dock -->
+<div id="voice">
+  <div id="waves"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+  <input id="cmd" placeholder="Speak or type a command — e.g. “what time is it”, “tell me a joke”" autocomplete="off"/>
+  <div id="mic" title="Hold to talk"><svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V21h2v-3.1A7 7 0 0 0 19 11z"/></svg></div>
+</div>
+<div id="status">LINK: <b id="linkState">…</b> · SAY <b>“jarvis”</b> OR TYPE</div>
+
+<script>
+"use strict";
+(function(){
+  const $=s=>document.querySelector(s), $$=s=>document.querySelectorAll(s);
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+
+  /* ---------- boot sequence ---------- */
+  const lines=[
+    "> mounting S.H.I.E.L.D. kernel ......... OK",
+    "> arc reactor ............. 100% stable",
+    "> loading neural interface ......... OK",
+    "> calibrating sensors [cpu|ram|net] OK",
+    "> speech subsystem ......... ONLINE",
+    "> establishing uplink 116.73.198.72",
+    "> J.A.R.V.I.S is at your service, sir."
+  ];
+  let bi=0; const blog=$("#bootlog");
+  const bt=setInterval(()=>{ if(bi<lines.length){blog.innerHTML+=lines[bi++]+"<br>";}
+    else{clearInterval(bt); setTimeout(()=>{$("#boot").classList.add("hide");speak("J.A.R.V.I.S online. Welcome back, sir.");},500);} },340);
+
+  /* ---------- responsive scaling ---------- */
+  function fit(){ const s=Math.min(innerWidth/1920, innerHeight/1080);
+    $("#stage").style.transform=`scale(${s})`; }
+  addEventListener("resize",fit); fit();
+
+  /* ---------- hex grid ---------- */
+  (function(){ const svg=$("#hex"); let h="";
+    for(let r=0;r<3;r++)for(let c=0;c<5;c++){ const x=20+c*40+(r%2?20:0), y=20+r*44;
+      const on=Math.random()>.55;
+      h+=`<polygon points="${x},${y-16} ${x+16},${y-8} ${x+16},${y+8} ${x},${y+16} ${x-16},${y+8} ${x-16},${y-8}"
+        fill="${on?'rgba(42,212,255,.18)':'none'}" stroke="var(--stroke-soft)" stroke-width="1"/>`; }
+    svg.innerHTML=h; })();
+
+  /* ---------- app tiles + calendar ---------- */
+  ["Photoshop","IMG Tool","COLL EDITOR","Tool Kit","Audition","MediaEncoder"].forEach(n=>{
+    const d=document.createElement("div"); d.className="apptile"; d.innerHTML=`<span class="d"></span>${n}`;
+    $("#apptiles").appendChild(d); });
+
+  function drawCal(){ const now=new Date(), y=now.getFullYear(), m=now.getMonth(), today=now.getDate();
+    const first=new Date(y,m,1).getDay(), days=new Date(y,m+1,0).getDate();
+    const D=["Su","Mo","Tu","We","Th","Fr","Sa"]; let html="<tr>"+D.map(d=>`<th>${d}</th>`).join("")+"</tr><tr>";
+    let col=0; for(let i=0;i<first;i++){html+="<td></td>";col++;}
+    for(let d=1;d<=days;d++){ html+=`<td class="${d===today?'on':''}">${d}</td>`; if(++col%7===0)html+="</tr><tr>"; }
+    html+="</tr>"; $("#calTable").innerHTML=html; }
+
+  /* ---------- clocks ---------- */
+  function tick(){ const n=new Date();
+    const hh=String(n.getHours()).padStart(2,"0"), mm=String(n.getMinutes()).padStart(2,"0");
+    $("#cTop").textContent=`${hh}:${mm}`;
+    $("#cTopSub").textContent=n.toLocaleDateString(undefined,{weekday:"long"});
+    $("#dDay").textContent=String(n.getDate()).padStart(2,"0");
+    $("#dMon").textContent=n.toLocaleDateString(undefined,{month:"long"}).toUpperCase();
+    $("#dWk").textContent=n.toLocaleDateString(undefined,{weekday:"long"}).toUpperCase();
+    let h12=n.getHours()%12||12; const ap=n.getHours()<12?"AM":"PM";
+    $("#bigT").innerHTML=`${String(h12).padStart(2,"0")}:${mm}<small>${ap}</small>`;
+    $("#bigSub").textContent=n.toLocaleDateString(undefined,{day:"2-digit",month:"short",weekday:"long"});
+  }
+
+  /* ---------- gauges ---------- */
+  function setMeter(id,v){ const el=$(id); if(el) el.style.width=clamp(v,0,100)+"%"; }
+  function setArc(id,v,total){ const el=$(id); if(el) el.setAttribute("stroke-dashoffset", (total*(1-clamp(v,0,100)/100)).toFixed(1)); }
+
+  function render(s){
+    if(s.cpu!=null){ $("#cpuTxt").textContent=Math.round(s.cpu)+"%"; setMeter("#cpuBar",s.cpu); $("#miniCpu").textContent=Math.round(s.cpu)+"%"; }
+    if(s.ram!=null){ const r=Math.round(s.ram); $("#ramTxt").textContent=r+"%"; setMeter("#ramBar",s.ram);
+      $("#ramTopTxt").textContent=r+"%"; $("#miniRam").textContent=r+"%"; setArc("#ramTopArc",s.ram,264); }
+    if(s.swap!=null){ $("#swapTxt").textContent=Math.round(s.swap)+"%"; setMeter("#swapBar",s.swap); }
+    if(s.battery!=null){ $("#battTxt").textContent=s.battery+"%"; setArc("#jarvisArc",s.battery,465); $("#plvl").textContent=s.battery; }
+    else { setArc("#jarvisArc",100,465); }
+    if(s.charging!=null) $("#acTxt").textContent=s.charging?"yes":"no";
+    if(s.cpu_temp!=null) $("#miniTemp").textContent=s.cpu_temp+"°C";
+    if(s.disk&&s.disk.length){ const d=s.disk[0]; $("#driveTot").textContent=(d.total_gb||0)+" GB"; setMeter("#driveBar",d.percent);
+      $("#diskRows").innerHTML=s.disk.map(x=>`<div class="row"><div class="top"><span>${(x.name||x.mount).slice(0,10)}</span>
+        <span class="mono">${x.used_gb}/${x.total_gb} GB</span></div><div class="meter"><i style="width:${x.percent}%"></i></div></div>`).join("");
+      $("#fsRows").innerHTML=s.disk.map(x=>`<div class="row"><span class="dim">${(x.mount||'').slice(0,14)}</span><span class="mono">${x.total_gb} GB</span></div>`).join(""); }
+    if(s.net_total_gb) $("#netTotal").textContent=s.net_total_gb+" GB";
+  }
+
+  /* ---------- backend link (live or demo) ---------- */
+  let LIVE=false;
+  async function poll(){ try{ const r=await fetch("/api/stats",{cache:"no-store"});
+      if(!r.ok) throw 0; const s=await r.json(); LIVE=true; setLink(true); render(s);
+    }catch(e){ LIVE=false; setLink(false); render(demo()); } }
+  function setLink(ok){ $("#linkState").textContent=ok?"JARVIS ONLINE":"DEMO MODE";
+    $("#linkState").style.color=ok?"var(--cyan)":"var(--amber)"; $("#idsub").textContent=ok?"… ONLINE …":"… DEMO …"; }
+
+  // demo simulation (smooth random walk)
+  let d={cpu:32,ram:50,swap:53,batt:100,temp:48};
+  function demo(){ const w=(v,lo,hi,st)=>clamp(v+(Math.random()-.5)*st,lo,hi);
+    d.cpu=w(d.cpu,6,92,10); d.ram=w(d.ram,38,74,4); d.swap=w(d.swap,40,64,3); d.temp=w(d.temp,40,70,2);
+    return {cpu:d.cpu,ram:d.ram,swap:d.swap,battery:Math.round(d.batt),charging:true,cpu_temp:Math.round(d.temp),
+      disk:[{name:"C:\\",mount:"C:\\",percent:31,used_gb:280.7,total_gb:916.7},
+            {name:"D:\\",mount:"D:\\",percent:89,used_gb:13.2,total_gb:14.7}], net_total_gb:653.5}; }
+
+  /* ---------- speech ---------- */
+  function speak(t){ try{ if(!("speechSynthesis"in window))return; const u=new SpeechSynthesisUtterance(t);
+    u.rate=1; u.pitch=.7; speechSynthesis.cancel(); speechSynthesis.speak(u);}catch(e){} }
+
+  async function runCommand(text){ if(!text)return; showReply("· "+text+" ·","dim");
+    if(LIVE){ try{ const r=await fetch("/api/command",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text})});
+        const j=await r.json(); showReply(j.reply); speak(j.reply); return; }catch(e){} }
+    const j=localAnswer(text); showReply(j); speak(j); }
+
+  function showReply(t){ const el=$("#powerline").querySelector(".t");
+    el.innerHTML=t.replace(/</g,"&lt;"); el.style.color="var(--white)";
+    clearTimeout(showReply._t); showReply._t=setTimeout(()=>{ el.innerHTML=`Currently power level is at <b id="plvl">${$("#battTxt").textContent.replace('%','')}</b> percent and holding steady.`; },7000); }
+
+  // offline fallback answers (demo mode)
+  function localAnswer(t){ t=t.toLowerCase();
+    const now=new Date();
+    if(/time/.test(t)) return "The current time is "+now.toLocaleTimeString();
+    if(/date|day/.test(t)) return "Today is "+now.toLocaleDateString(undefined,{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+    if(/joke/.test(t)) return "Why do programmers prefer dark mode? Because light attracts bugs.";
+    if(/hello|hi|hey/.test(t)) return "Hello, sir. JARVIS at your service.";
+    if(/who are you|your name/.test(t)) return "I am JARVIS, your S.H.I.E.L.D. operating system.";
+    if(/battery|power/.test(t)) return "Power level is at "+$("#battTxt").textContent+" and holding steady.";
+    if(/cpu/.test(t)) return "CPU usage is "+$("#cpuTxt").textContent;
+    if(/ram|memory/.test(t)) return "System memory usage is "+$("#ramTxt").textContent;
+    return "Connect the JARVIS backend to answer that, sir. Running in demo mode.";
+  }
+
+  // Web Speech recognition
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition; let rec=null,listening=false;
+  const waves=$$("#waves i");
+  function animWaves(on){ waves.forEach(w=>{ w.style.transition="height .12s"; }); if(!on){waves.forEach(w=>w.style.height="20%");return;}
+    (function loop(){ if(!listening)return; waves.forEach(w=>w.style.height=(15+Math.random()*85)+"%"); requestAnimationFrame(()=>setTimeout(loop,90)); })(); }
+  function startListen(){ if(!SR){ $("#cmd").focus(); return; }
+    if(listening)return; rec=new SR(); rec.lang="en-US"; rec.interimResults=true; rec.continuous=false;
+    listening=true; $("#mic").classList.add("live"); animWaves(true);
+    rec.onresult=e=>{ const txt=Array.from(e.results).map(r=>r[0].transcript).join(""); $("#cmd").value=txt;
+      if(e.results[e.results.length-1].isFinal){ runCommand(txt.trim()); } };
+    rec.onend=()=>{ listening=false; $("#mic").classList.remove("live"); animWaves(false); };
+    rec.onerror=()=>{ listening=false; $("#mic").classList.remove("live"); animWaves(false); };
+    try{rec.start();}catch(e){} }
+
+  /* ---------- events ---------- */
+  $("#mic").addEventListener("click",()=>listening?rec&&rec.stop():startListen());
+  $("#jarvisCore").addEventListener("click",()=>listening?rec&&rec.stop():startListen());
+  $("#cmd").addEventListener("keydown",e=>{ if(e.key==="Enter"){ runCommand(e.target.value.trim()); e.target.value=""; }});
+  $$("[data-url]").forEach(el=>el.addEventListener("click",()=>{ const u=el.dataset.url; if(u&&u!=="#") open(u,"_blank","noopener"); }));
+  $$("[data-power]").forEach(el=>el.addEventListener("click",()=>{ const a=el.dataset.power;
+    showReply("Command received: "+a.toUpperCase()+". (disabled from HUD)"); speak(a+" is disabled from the interface, sir."); }));
+  $$("[data-media]").forEach(el=>el.addEventListener("click",async()=>{ const a=el.dataset.media;
+    if(a==="play"){ const b=$("#playBtn").querySelector("path"); b.setAttribute("d", b.getAttribute("d").startsWith("M8 5")?"M6 5h4v14H6zm8 0h4v14h-4z":"M8 5v14l11-7z"); }
+    if(LIVE&&(a==="play"||a==="next"||a==="prev")){ try{ await fetch("/api/media/"+(a==="prev"?"stop":a==="next"?"play":"play"),{method:"POST"}); }catch(e){} }
+    showReply(a==="play"?"Playing music, sir.":a==="next"?"Next track.":"Previous track."); }));
+
+  /* ---------- start ---------- */
+  drawCal(); tick(); render(demo());
+  setInterval(tick,1000); poll(); setInterval(poll,1500);
+})();
+</script>
+</body>
+</html>
