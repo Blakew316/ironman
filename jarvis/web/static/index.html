@@ -139,7 +139,10 @@ body{color:var(--white);letter-spacing:.06em}
 #drive{left:470px;top:262px;width:230px;height:70px;padding:8px 14px}
 #drive .top{display:flex;justify-content:space-between;font-size:11px;color:var(--dim);margin-bottom:4px}
 
-#hero{left:660px;top:120px;width:600px;height:760px;border:0;background:none;pointer-events:none}
+#hero{display:none!important}
+#core{left:570px;top:110px;width:780px;height:780px;pointer-events:auto;cursor:pointer;
+  filter:drop-shadow(0 0 26px rgba(42,180,255,.35))}
+#core.talk{filter:drop-shadow(0 0 40px rgba(60,200,255,.6))}
 /* drop-in centerpiece image: place a file at static/centerpiece.png and it
    replaces the vector figure automatically (see loader in script). */
 #heroImg{left:620px;top:96px;width:680px;height:820px;object-fit:contain;display:none;
@@ -256,6 +259,16 @@ body{color:var(--white);letter-spacing:.06em}
 
 <div id="viewport">
 <div id="stage">
+
+  <!-- shared gradient defs (used by the reactor cores) -->
+  <svg width="0" height="0" aria-hidden="true" style="position:absolute"><defs>
+    <radialGradient id="rg" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#eaffff"/><stop offset="30%" stop-color="#2ad4ff"/><stop offset="100%" stop-color="#06303f"/>
+    </radialGradient>
+  </defs></svg>
+
+  <!-- animated energy core (canvas) -->
+  <canvas id="core"></canvas>
 
   <!-- identity -->
   <div class="panel" id="identity">
@@ -618,6 +631,118 @@ body{color:var(--white);letter-spacing:.06em}
 
 <script>
 "use strict";
+
+/* ================= animated energy core (canvas particle sphere) =================
+   A dense ball of thousands of glowing blue particles packed onto a rotating
+   sphere, with a tangled bright core. States: idle · listening · thinking ·
+   talking (talk-reactive amplitude). Original generative art. */
+class CoreOrb{
+  constructor(canvas){
+    this.c=canvas; this.x=canvas.getContext("2d");
+    this.reduced=matchMedia("(prefers-reduced-motion: reduce)").matches;
+    this.DPR=Math.min(window.devicePixelRatio||1,2);
+    const s=canvas.clientWidth||660;
+    this.c.width=s*this.DPR; this.c.height=s*this.DPR;
+    this.cx=this.c.width/2; this.cy=this.c.height/2; this.R=this.c.width*0.42;
+    this.state="idle"; this.t=0; this.angle=0; this.amp=0; this.ripple=-1;
+    this.p={rot:0.4,exp:1,br:0.8,core:1,chaos:0.02,spoke:0.30};
+    this.tg=Object.assign({},this.p);
+    // particles: mostly on the shell (a ball surface) + some interior for depth
+    this.N=this.reduced?1400:3600; this.pts=new Array(this.N);
+    for(let i=0;i<this.N;i++){ const u=Math.random(),v=Math.random();
+      const rr=Math.random()<0.82?(0.9+Math.random()*0.12):(0.25+Math.random()*0.6);
+      this.pts[i]={th:Math.acos(2*u-1),ph:2*Math.PI*v,rr,sp:0.5+Math.random(),sd:Math.random()*6.28}; }
+    // depth buckets → batched fills (keeps thousands of dots fast)
+    this.B=8; this.bk=[]; for(let i=0;i<this.B;i++) this.bk.push([]);
+    // radial filament spokes + tangled core strands
+    this.spokes=[]; const NS=this.reduced?46:96;
+    for(let i=0;i<NS;i++){ const a=Math.random()<0.5?(Math.PI*0.5+(Math.random()-0.5)*1.8):Math.random()*6.28;
+      this.spokes.push({a,len:0.5+Math.random()*0.55,ph:Math.random()*6.28,sp:0.4+Math.random()*1.4}); }
+    this.strands=[]; for(let i=0;i<12;i++)
+      this.strands.push({r:0.06+Math.random()*0.2,ph:Math.random()*6.28,sp:0.6+Math.random()*1.4,w:0.5+Math.random()});
+    this._loop=this._loop.bind(this); requestAnimationFrame(this._loop);
+  }
+  setState(s){ this.state=s;
+    const M={ idle:{rot:0.4,exp:1,br:0.8,core:1,chaos:0.02,spoke:0.30},
+      listening:{rot:0.75,exp:1.10,br:1.0,core:1.15,chaos:0.10,spoke:0.55},
+      thinking:{rot:2.2,exp:1.03,br:1.05,core:1.2,chaos:0.4,spoke:0.8},
+      talking:{rot:0.95,exp:1.05,br:1.15,core:1.35,chaos:0.16,spoke:0.6} };
+    this.tg=Object.assign({},M[s]||M.idle);
+    if(s==="listening") this.ripple=0;
+    this.c.classList.toggle("talk",s==="talking");
+  }
+  _loop(){
+    const x=this.x, cx=this.cx, cy=this.cy, DPR=this.DPR; this.t+=1/60;
+    for(const k in this.p) this.p[k]+=(this.tg[k]-this.p[k])*0.06;
+    if(!this.reduced) this.angle+=this.p.rot*0.014;
+    const talk=this.state==="talking", br=this.p.br, chaos=this.p.chaos;
+    const tAmp=talk?Math.max(0,0.4+0.5*Math.sin(this.t*15)+0.35*Math.sin(this.t*31+1)+0.2*(Math.random()-0.3)):0;
+    this.amp+=(tAmp-this.amp)*0.3;
+    const breathe=talk?1+this.amp*0.22:1+Math.sin(this.t*(this.state==="listening"?4.5:1.6))*0.03;
+    const R=this.R*this.p.exp*breathe;
+
+    x.save();
+    x.beginPath(); x.arc(cx,cy,this.R*1.22,0,7); x.clip();
+    x.globalCompositeOperation="source-over";
+    x.fillStyle="rgba(2,6,11,0.42)"; x.fillRect(cx-this.R*1.3,cy-this.R*1.3,this.R*2.6,this.R*2.6);
+    x.globalCompositeOperation="lighter";
+
+    // sphere-edge crescent
+    x.lineWidth=this.R*0.04;
+    const sg=x.createLinearGradient(cx-R,cy-R,cx+R,cy+R);
+    sg.addColorStop(0,"rgba(20,110,170,0)"); sg.addColorStop(1,"rgba(80,195,255,0.20)");
+    x.strokeStyle=sg; x.beginPath(); x.arc(cx,cy,R,-0.65,1.05); x.stroke();
+
+    // radial spokes
+    for(const s of this.spokes){ const fl=0.3+0.7*Math.abs(Math.sin(this.t*s.sp+s.ph));
+      const a=s.a+Math.sin(this.t*0.3+s.ph)*0.04, r0=R*0.22, r1=R*(0.55+s.len*0.45)*this.p.spoke*(0.8+0.4*fl);
+      x.strokeStyle="rgba(110,215,255,"+(0.04+0.12*fl*br)+")"; x.lineWidth=1;
+      x.beginPath(); x.moveTo(cx+Math.cos(a)*r0,cy+Math.sin(a)*r0); x.lineTo(cx+Math.cos(a)*r1,cy+Math.sin(a)*r1); x.stroke(); }
+
+    // particles → project, bucket by depth, batch-fill as tiny dots
+    const B=this.B, bk=this.bk; for(let i=0;i<B;i++) bk[i].length=0;
+    const ca=Math.cos(this.angle), sa=Math.sin(this.angle), ct=Math.cos(0.5), stt=Math.sin(0.5);
+    for(let i=0;i<this.N;i++){ const pt=this.pts[i];
+      const st=Math.sin(pt.th), bx=Math.cos(pt.ph)*st, by=Math.cos(pt.th), bz=Math.sin(pt.ph)*st;
+      const rf=pt.rr*(1+Math.sin(this.t*1.6*pt.sp+pt.sd)*chaos);
+      const X=bx*ca+bz*sa, Z=-bx*sa+bz*ca, Y=by*ct-Z*stt, Z2=by*stt+Z*ct;
+      let bi=((Z2+1)*0.5*B)|0; if(bi>=B)bi=B-1; if(bi<0)bi=0;
+      const arr=bk[bi]; arr.push(cx+X*R*rf, cy+Y*R*rf); }
+    for(let i=0;i<B;i++){ const t=i/(B-1), arr=bk[i];
+      x.fillStyle="rgba("+((70+t*185)|0)+","+((175+t*80)|0)+",255,"+((0.12+t*0.6)*br).toFixed(3)+")";
+      const sz=(0.85+t*1.85)*DPR*0.7, h=sz*0.5;
+      for(let j=0;j<arr.length;j+=2) x.fillRect(arr[j]-h,arr[j+1]-h,sz,sz); }
+
+    // listening ripple
+    if(this.ripple>=0){ this.ripple+=0.02; const rr=this.ripple;
+      if(rr>1.15) this.ripple=this.state==="listening"?0:-1;
+      x.strokeStyle="rgba(130,235,255,"+(0.45*(1-rr))+")"; x.lineWidth=2;
+      x.beginPath(); x.arc(cx,cy,R*rr,0,7); x.stroke(); }
+
+    // tangled bright core strands
+    x.lineWidth=1.2;
+    for(const s of this.strands){ const base=R*s.r*(talk?1+this.amp*0.3:1), a0=this.angle*2*s.sp+s.ph;
+      x.strokeStyle="rgba(185,242,255,"+(0.28*br*s.w)+")"; x.beginPath();
+      for(let k=0;k<=12;k++){ const aa=a0+k*0.55, rad=base*(0.5+0.6*Math.sin(aa*1.7+s.ph));
+        const px=cx+Math.cos(aa)*rad, py=cy+Math.sin(aa)*rad*0.7; k?x.lineTo(px,py):x.moveTo(px,py); }
+      x.stroke(); }
+
+    // core bloom
+    const cs=this.R*0.11*this.p.core*(talk?1+this.amp*0.35:breathe);
+    const g=x.createRadialGradient(cx,cy,0,cx,cy,cs*2.6);
+    g.addColorStop(0,"rgba(255,255,255,"+Math.min(1,0.85*br+this.amp*0.2)+")");
+    g.addColorStop(0.3,"rgba(160,238,255,0.6)");
+    g.addColorStop(0.7,"rgba(40,160,235,0.18)");
+    g.addColorStop(1,"rgba(10,60,110,0)");
+    x.fillStyle=g; x.beginPath(); x.arc(cx,cy,cs*2.6,0,7); x.fill();
+    x.fillStyle="rgba(255,255,255,"+Math.min(1,0.7*br+this.amp*0.25)+")";
+    x.beginPath(); x.arc(cx,cy,cs*0.42,0,7); x.fill();
+
+    x.restore();
+    requestAnimationFrame(this._loop);
+  }
+}
+
 (function(){
   const $=s=>document.querySelector(s), $$=s=>document.querySelectorAll(s);
   const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -641,6 +766,10 @@ body{color:var(--white);letter-spacing:.06em}
     $("#stage").style.transform=`scale(${s})`; }
   addEventListener("resize",fit); fit();
 
+  /* ---------- the animated energy core (main centerpiece) ---------- */
+  const CORE = (function(){ const el=$("#core"); return el ? new CoreOrb(el) : null; })();
+  window.jarvisCore = CORE;  // exposed so the state can be driven/tested externally
+
   /* ---------- drop-in centerpiece image ----------
      If you place an image at static/centerpiece.png (or .jpg/.webp/.gif),
      it becomes the center of the HUD in place of the vector figure.
@@ -652,7 +781,7 @@ body{color:var(--white);letter-spacing:.06em}
     if(new URLSearchParams(location.search).get("blend")==="1") img.classList.add("blend");
     (function next(){ if(i>=names.length) return; const url="/static/"+names[i++];
       const probe=new Image();
-      probe.onload=()=>{ img.src=url; img.classList.add("on"); $("#hero").classList.add("off"); };
+      probe.onload=()=>{ img.src=url; img.classList.add("on"); const c=$("#core"); if(c) c.style.display="none"; };
       probe.onerror=next; probe.src=url;
     })();
   })();
@@ -728,9 +857,12 @@ body{color:var(--white);letter-spacing:.06em}
 
   /* ---------- speech ---------- */
   function speak(t){ try{ if(!("speechSynthesis"in window))return; const u=new SpeechSynthesisUtterance(t);
-    u.rate=1; u.pitch=.7; speechSynthesis.cancel(); speechSynthesis.speak(u);}catch(e){} }
+    u.rate=1; u.pitch=.7;
+    u.onstart=()=>CORE&&CORE.setState("talking");
+    u.onend=()=>CORE&&CORE.setState(listening?"listening":"idle");
+    speechSynthesis.cancel(); speechSynthesis.speak(u);}catch(e){} }
 
-  async function runCommand(text){ if(!text)return; showReply("· "+text+" ·","dim");
+  async function runCommand(text){ if(!text)return; showReply("· "+text+" ·","dim"); if(CORE)CORE.setState("thinking");
     if(LIVE){ try{ const r=await fetch("/api/command",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text})});
         const j=await r.json(); showReply(j.reply); speak(j.reply); return; }catch(e){} }
     const j=localAnswer(text); showReply(j); speak(j); }
@@ -760,16 +892,17 @@ body{color:var(--white);letter-spacing:.06em}
     (function loop(){ if(!listening)return; waves.forEach(w=>w.style.height=(15+Math.random()*85)+"%"); requestAnimationFrame(()=>setTimeout(loop,90)); })(); }
   function startListen(){ if(!SR){ $("#cmd").focus(); return; }
     if(listening)return; rec=new SR(); rec.lang="en-US"; rec.interimResults=true; rec.continuous=false;
-    listening=true; $("#mic").classList.add("live"); animWaves(true);
+    listening=true; $("#mic").classList.add("live"); animWaves(true); if(CORE)CORE.setState("listening");
     rec.onresult=e=>{ const txt=Array.from(e.results).map(r=>r[0].transcript).join(""); $("#cmd").value=txt;
       if(e.results[e.results.length-1].isFinal){ runCommand(txt.trim()); } };
-    rec.onend=()=>{ listening=false; $("#mic").classList.remove("live"); animWaves(false); };
-    rec.onerror=()=>{ listening=false; $("#mic").classList.remove("live"); animWaves(false); };
+    rec.onend=()=>{ listening=false; $("#mic").classList.remove("live"); animWaves(false); if(CORE&&CORE.state==="listening")CORE.setState("idle"); };
+    rec.onerror=()=>{ listening=false; $("#mic").classList.remove("live"); animWaves(false); if(CORE&&CORE.state==="listening")CORE.setState("idle"); };
     try{rec.start();}catch(e){} }
 
   /* ---------- events ---------- */
   $("#mic").addEventListener("click",()=>listening?rec&&rec.stop():startListen());
   $("#jarvisCore").addEventListener("click",()=>listening?rec&&rec.stop():startListen());
+  $("#core").addEventListener("click",()=>listening?rec&&rec.stop():startListen());
   $("#cmd").addEventListener("keydown",e=>{ if(e.key==="Enter"){ runCommand(e.target.value.trim()); e.target.value=""; }});
   $$("[data-url]").forEach(el=>el.addEventListener("click",()=>{ const u=el.dataset.url; if(u&&u!=="#") open(u,"_blank","noopener"); }));
   $$("[data-power]").forEach(el=>el.addEventListener("click",()=>{ const a=el.dataset.power;
