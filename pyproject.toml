@@ -1,0 +1,72 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jarvis-assistant"
+version = "0.2.0"
+description = "An Iron Man inspired personal voice assistant written in Python"
+readme = "README.md"
+requires-python = ">=3.8"
+license = { file = "LICENSE" }
+keywords = ["voice-assistant", "jarvis", "speech-recognition", "automation"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "Topic :: Multimedia :: Sound/Audio :: Speech",
+]
+
+# Core dependencies are intentionally minimal. Everything heavy or
+# platform-specific is an optional extra so the package installs and imports
+# cleanly in constrained/headless environments (CI, containers, servers).
+dependencies = []
+
+[project.optional-dependencies]
+voice = ["pyttsx3", "SpeechRecognition", "PyAudio"]
+audio = ["pygame"]
+weather = ["pyowm>=3.0"]
+knowledge = ["wolframalpha", "wikipedia"]
+system = ["psutil"]
+jokes = ["pyjokes"]
+vision = ["opencv-python", "pyautogui", "numpy", "pytesseract"]
+translate = ["googletrans==4.0.0rc1"]
+calendar = [
+    "google-api-python-client",
+    "google-auth-oauthlib",
+    "google-auth-httplib2",
+]
+config = ["python-dotenv"]
+dev = ["pytest"]
+all = [
+    "pyttsx3",
+    "SpeechRecognition",
+    "PyAudio",
+    "pygame",
+    "pyowm>=3.0",
+    "wolframalpha",
+    "wikipedia",
+    "psutil",
+    "pyjokes",
+    "opencv-python",
+    "pyautogui",
+    "numpy",
+    "pytesseract",
+    "googletrans==4.0.0rc1",
+    "google-api-python-client",
+    "google-auth-oauthlib",
+    "google-auth-httplib2",
+    "python-dotenv",
+]
+
+[project.scripts]
+jarvis = "jarvis.assistant:main"
+
+[project.urls]
+Homepage = "https://kkshitiz.github.io/J.A.R.V.I.S/"
+Repository = "https://github.com/Blakew316/j.a.r.v.i.s"
+
+[tool.setuptools.packages.find]
+include = ["jarvis*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

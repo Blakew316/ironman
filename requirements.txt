@@ -1,0 +1,38 @@
+# Full runtime dependencies for J.A.R.V.I.S.
+#
+# For a lighter install use the extras defined in pyproject.toml, e.g.:
+#   pip install -e ".[voice,system]"
+#
+# Note: PyAudio requires the PortAudio system library. On Debian/Ubuntu:
+#   sudo apt-get install portaudio19-dev
+# On macOS (Homebrew):
+#   brew install portaudio
+
+# --- speech / voice ---
+pyttsx3
+SpeechRecognition
+PyAudio
+
+# --- audio playback ---
+pygame
+
+# --- skills ---
+pyowm>=3.0
+pyjokes
+psutil
+wolframalpha
+googletrans==4.0.0rc1
+
+# --- computer vision / screenshots ---
+opencv-python
+pyautogui
+numpy
+pytesseract
+
+# --- google calendar ---
+google-api-python-client
+google-auth-oauthlib
+google-auth-httplib2
+
+# --- configuration (.env support) ---
+python-dotenv
