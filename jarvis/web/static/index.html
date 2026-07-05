@@ -140,6 +140,13 @@ body{color:var(--white);letter-spacing:.06em}
 #drive .top{display:flex;justify-content:space-between;font-size:11px;color:var(--dim);margin-bottom:4px}
 
 #hero{left:660px;top:120px;width:600px;height:760px;border:0;background:none;pointer-events:none}
+/* drop-in centerpiece image: place a file at static/centerpiece.png and it
+   replaces the vector figure automatically (see loader in script). */
+#heroImg{left:620px;top:96px;width:680px;height:820px;object-fit:contain;display:none;
+  pointer-events:none;filter:drop-shadow(0 0 28px rgba(42,212,255,.45)) drop-shadow(0 0 6px rgba(42,212,255,.6))}
+#heroImg.on{display:block}
+#hero.off{display:none}
+#heroImg.blend{mix-blend-mode:screen}
 #weblinks{left:770px;top:150px;width:150px;height:340px;border:0;background:none;text-align:center;pointer-events:auto}
 .weblink{font-size:15px;font-weight:700;letter-spacing:.16em;color:var(--white);cursor:pointer;padding:2px 0;transition:.15s}
 .weblink:hover{color:var(--cyan);text-shadow:0 0 10px var(--cyan)}
@@ -211,6 +218,13 @@ body{color:var(--white);letter-spacing:.06em}
 @keyframes reactor{0%,100%{opacity:.55;filter:drop-shadow(0 0 6px var(--cyan))}50%{opacity:1;filter:drop-shadow(0 0 22px var(--cyan))}}
 .dash{stroke-dasharray:6 8;animation:dashmove 3s linear infinite}
 @keyframes dashmove{to{stroke-dashoffset:-56}}
+
+/* respect reduced-motion: calm the continuous rotation/scan, keep the ambient glow */
+@media (prefers-reduced-motion:reduce){
+  .spin,.spin-r,.spin-fast,.dash{animation:none!important}
+  #stage::after{animation:none}
+  #waves i{transition:none}
+}
 
 /* ---------- boot overlay ---------- */
 #boot{position:fixed;inset:0;background:#04070b;z-index:100;display:grid;place-items:center;
@@ -487,6 +501,9 @@ body{color:var(--white);letter-spacing:.06em}
     </g>
   </svg>
 
+  <!-- optional drop-in centerpiece image (replaces the vector figure when present) -->
+  <img id="heroImg" alt="J.A.R.V.I.S centerpiece"/>
+
   <!-- web links -->
   <div id="weblinks">
     <div class="weblink" data-url="https://google.com">GOOGLE</div>
@@ -623,6 +640,22 @@ body{color:var(--white);letter-spacing:.06em}
   function fit(){ const s=Math.min(innerWidth/1920, innerHeight/1080);
     $("#stage").style.transform=`scale(${s})`; }
   addEventListener("resize",fit); fit();
+
+  /* ---------- drop-in centerpiece image ----------
+     If you place an image at static/centerpiece.png (or .jpg/.webp/.gif),
+     it becomes the center of the HUD in place of the vector figure.
+     Add ?blend=1 to the URL if your image is on a black background and you
+     want it to blend into the HUD. */
+  (function(){
+    const names=["centerpiece.png","centerpiece.jpg","centerpiece.jpeg","centerpiece.webp","centerpiece.gif","ironman.png","hero.png"];
+    const img=$("#heroImg"); let i=0;
+    if(new URLSearchParams(location.search).get("blend")==="1") img.classList.add("blend");
+    (function next(){ if(i>=names.length) return; const url="/static/"+names[i++];
+      const probe=new Image();
+      probe.onload=()=>{ img.src=url; img.classList.add("on"); $("#hero").classList.add("off"); };
+      probe.onerror=next; probe.src=url;
+    })();
+  })();
 
   /* ---------- hex grid ---------- */
   (function(){ const svg=$("#hex"); let h="";
