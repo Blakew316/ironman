@@ -27,7 +27,10 @@ PACKAGE_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = PACKAGE_DIR.parent
 
 if load_dotenv is not None:  # pragma: no cover
-    load_dotenv(PROJECT_ROOT / ".env")
+    # override=True: the project's .env is the source of truth. Without it, a
+    # stale key exported in the user's shell profile silently wins over the
+    # freshly fixed value in .env.
+    load_dotenv(PROJECT_ROOT / ".env", override=True)
 
 
 def _path_from_env(var: str, default: Path) -> Path:
