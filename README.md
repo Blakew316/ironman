@@ -144,6 +144,22 @@ jarvis-web            # opens http://127.0.0.1:8731 in your browser
 | `JARVIS_WEB_NO_BROWSER` | `0` | set `1` to not auto-open the browser |
 | `JARVIS_WEB_ALLOW_POWER` | `0` | set `1` to allow shutdown/restart from the HUD |
 
+### Reasoning brain (optional)
+
+Local skills (time, weather, jokes, system stats, Wikipedia…) are matched by
+keyword, so natural phrasing works. Anything else can be answered by a real
+conversational **brain** — set one API key and J.A.R.V.I.S will reason about it,
+then speak the answer **in whatever voice you've configured** (including your
+cloned voice). The brain and the voice are fully independent.
+
+| Env var | Brain |
+|---|---|
+| `ANTHROPIC_API_KEY` | Claude (used if both are set) |
+| `OPENAI_API_KEY` | GPT |
+| `JARVIS_CHAT_MODEL` | optional model override (e.g. `claude-sonnet-5`, `gpt-4o`) |
+
+Add the key to `.env`, restart `jarvis-web`, and ask it anything.
+
 ### Premium voice (optional)
 
 By default the HUD speaks with the browser's built-in voice (it picks a British

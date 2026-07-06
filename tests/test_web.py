@@ -21,6 +21,26 @@ def test_dispatch_empty_is_idle():
     assert dispatch.handle("")["intent"] == "idle"
 
 
+def test_dispatch_keyword_robustness(monkeypatch):
+    # keyword matching should handle natural phrasing + a leading wake word
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    assert dispatch.handle("jarvis what's the time right now?")["intent"] == "time"
+    assert dispatch.handle("could you check my battery please")["intent"] == "battery"
+    assert dispatch.handle("tell me a good joke")["intent"] == "joke"
+    assert dispatch.handle("what day is it")["intent"] == "date"
+
+
+def test_chat_provider_selection(monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    assert dispatch.chat_provider() is None
+    monkeypatch.setenv("OPENAI_API_KEY", "x")
+    assert dispatch.chat_provider() == "openai"
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "y")  # Claude wins when both set
+    assert dispatch.chat_provider() == "anthropic"
+
+
 def test_dispatch_power_denied_by_default(monkeypatch):
     monkeypatch.delenv("JARVIS_WEB_ALLOW_POWER", raising=False)
     out = dispatch.handle("shut down")
