@@ -41,9 +41,34 @@ def test_chat_provider_selection(monkeypatch):
     assert dispatch.chat_provider() == "anthropic"
 
 
+def test_live_weather_formats_reply(monkeypatch):
+    # keyless Open-Meteo path: geocode -> forecast -> spoken sentence
+    def fake_get(url, timeout=8):
+        if "geocoding" in url:
+            return {"results": [{"latitude": 25.8, "longitude": -80.2, "name": "Miami"}]}
+        return {"current": {"temperature_2m": 84.2, "apparent_temperature": 91.0,
+                            "relative_humidity_2m": 70, "weather_code": 2},
+                "daily": {"temperature_2m_max": [91.0], "temperature_2m_min": [78.0],
+                          "precipitation_probability_max": [40]}}
+    monkeypatch.setattr(dispatch, "_get_json", fake_get)
+    out = dispatch.handle("what's the weather in miami")
+    assert out["intent"] == "weather"
+    assert "84 degrees" in out["reply"] and "partly cloudy" in out["reply"] and "Miami" in out["reply"]
+    assert "40 percent" in out["reply"]
+
+
+def test_live_weather_failure_falls_back(monkeypatch):
+    monkeypatch.setattr(dispatch, "_live_weather", lambda city=None: None)
+    monkeypatch.delenv("OWM_API_KEY", raising=False)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
+    monkeypatch.setattr(dispatch, "_chat", lambda prompt: "Sunny, sir.")
+    assert dispatch.handle("what's the weather like")["intent"] == "chat"
+
+
 def test_weather_goes_to_brain_without_owm_key(monkeypatch):
     # no weather API key + a brain configured -> the brain answers, not the
     # useless "no API key configured" reply
+    monkeypatch.setattr(dispatch, "_live_weather", lambda city=None: None)
     monkeypatch.delenv("OWM_API_KEY", raising=False)
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
     monkeypatch.setattr(dispatch, "_chat", lambda prompt: "Sunny, sir.")
@@ -53,6 +78,7 @@ def test_weather_goes_to_brain_without_owm_key(monkeypatch):
 
 
 def test_weather_uses_local_skill_without_brain(monkeypatch):
+    monkeypatch.setattr(dispatch, "_live_weather", lambda city=None: None)
     monkeypatch.delenv("OWM_API_KEY", raising=False)
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)

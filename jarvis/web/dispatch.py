@@ -15,6 +15,7 @@ import random
 import re
 import unicodedata
 import urllib.error
+import urllib.parse
 import urllib.request
 
 from jarvis.nlp import action_phrases as ap
@@ -121,6 +122,62 @@ def _post_json(url, headers, payload, timeout=25):
 _last_brain_error = None
 
 
+def _get_json(url, timeout=8):
+    req = urllib.request.Request(url, headers={"User-Agent": "jarvis-hud"})
+    with urllib.request.urlopen(req, timeout=timeout, context=_ssl_context()) as r:
+        return json.loads(r.read())
+
+
+# WMO weather codes -> spoken sky conditions (Open-Meteo)
+_WMO = {0: "clear skies", 1: "mostly clear", 2: "partly cloudy", 3: "overcast",
+        45: "foggy", 48: "icy fog", 51: "light drizzle", 53: "drizzle",
+        55: "heavy drizzle", 61: "light rain", 63: "rain", 65: "heavy rain",
+        66: "freezing rain", 67: "freezing rain", 71: "light snow", 73: "snow",
+        75: "heavy snow", 77: "snow grains", 80: "light showers", 81: "showers",
+        82: "heavy showers", 85: "snow showers", 86: "snow showers",
+        95: "thunderstorms", 96: "thunderstorms with hail", 99: "thunderstorms with hail"}
+
+
+def _live_weather(city=None):
+    """Live weather with NO api key: Open-Meteo + IP geolocation.
+
+    Works out of the box, forever — weather questions never depend on the
+    reasoning brain, a paid key, or web search being available.
+    """
+    try:
+        if not city:
+            city = os.environ.get("JARVIS_CITY")
+        if city:
+            g = _get_json("https://geocoding-api.open-meteo.com/v1/search?count=1&name=" +
+                          urllib.parse.quote(city))
+            hits = g.get("results") or []
+            if not hits:
+                return None
+            lat, lon, place = hits[0]["latitude"], hits[0]["longitude"], hits[0]["name"]
+        else:
+            ip = _get_json("https://ipapi.co/json/")
+            lat, lon, place = ip["latitude"], ip["longitude"], ip.get("city", "your location")
+        tu = "celsius" if os.environ.get("JARVIS_UNITS", "imperial") == "metric" else "fahrenheit"
+        f = _get_json("https://api.open-meteo.com/v1/forecast?latitude=%s&longitude=%s"
+                      "&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code"
+                      "&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max"
+                      "&forecast_days=1&timezone=auto&temperature_unit=%s" % (lat, lon, tu))
+        cur, day = f["current"], f["daily"]
+        temp = round(cur["temperature_2m"])
+        sky = _WMO.get(int(cur.get("weather_code", -1)), "unsettled skies")
+        reply = "It's %d degrees and %s in %s, sir" % (temp, sky, place)
+        feels = round(cur.get("apparent_temperature", temp))
+        if feels != temp:
+            reply += ", though it feels like %d" % feels
+        rain = int((day.get("precipitation_probability_max") or [0])[0] or 0)
+        reply += ". Expect %d to %d today with a %d percent chance of rain." % (
+            round(day["temperature_2m_min"][0]), round(day["temperature_2m_max"][0]), rain)
+        return reply
+    except Exception as exc:
+        print("[dispatch] live weather failed: %s" % exc)
+        return None
+
+
 def _chat(prompt):
     """Conversational 'brain'. Claude (ANTHROPIC_API_KEY) if set, else OpenAI.
 
@@ -220,14 +277,16 @@ def handle(text):
         return {"reply": tell_joke.startJoke(), "intent": "joke"}
 
     # --- weather ---
-    # Only use the built-in OpenWeatherMap skill when it can actually work;
-    # otherwise let the reasoning brain (with live web search) answer instead
-    # of parroting "no API key configured".
+    # Keyless live weather first (Open-Meteo + IP location) so this ALWAYS
+    # works; the reasoning brain and the legacy OWM skill are fallbacks.
     if has("weather", "forecast", "umbrella", "temperature", "how hot", "how cold", "is it raining", "how s the sky"):
+        m = re.search(r"(?:weather|forecast|temperature)\s+(?:in|for|at)\s+(.+)", cmd)
+        city = m.group(1).strip() if m else None
+        live = _live_weather(city)
+        if live:
+            return {"reply": live, "intent": "weather"}
         if os.environ.get("OWM_API_KEY") or chat_provider() is None:
-            m = re.search(r"(?:weather|forecast|temperature)\s+(?:in|for|at)\s+(.+)", cmd)
-            city = m.group(1).strip() if m else config.CITY
-            return {"reply": get_weather.weather(city), "intent": "weather"}
+            return {"reply": get_weather.weather(city or config.CITY), "intent": "weather"}
 
     # --- power (gated) ---
     if has("shut down", "shutdown", "power off", "turn off the computer"):

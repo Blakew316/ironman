@@ -1048,7 +1048,10 @@ class CoreOrb{
     const sents=(t.match(/[^.!?]+[.!?]*/g)||[t]).map(s=>s.trim()).filter(Boolean);
     const out=[]; let cur="";
     for(const s of sents){
-      if(cur && (cur.length+s.length)>200){ out.push(cur); cur=s; }
+      // first chunk stays SHORT so he starts speaking almost with the text;
+      // later chunks are longer for smooth flow
+      const cap=out.length?200:90;
+      if(cur && (cur.length+s.length)>cap){ out.push(cur); cur=s; }
       else cur=cur?cur+" "+s:s; }
     if(cur) out.push(cur); return out.length?out:[t]; }
 

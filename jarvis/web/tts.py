@@ -130,7 +130,9 @@ def _post(url, headers, payload, timeout=30):
 def _elevenlabs(text):
     voice = os.environ.get("ELEVENLABS_VOICE_ID", _DEFAULT_ELEVEN_VOICE)
     model = os.environ.get("ELEVENLABS_MODEL", "eleven_turbo_v2_5")
-    url = "https://api.elevenlabs.io/v1/text-to-speech/%s" % voice
+    # latency-optimized endpoint: sound starts as fast as the model allows
+    url = ("https://api.elevenlabs.io/v1/text-to-speech/%s"
+           "?optimize_streaming_latency=3&output_format=mp3_44100_64") % voice
     headers = {
         "xi-api-key": os.environ["ELEVENLABS_API_KEY"],
         "Content-Type": "application/json",
@@ -172,7 +174,7 @@ def _cache_path(p, text, ext):
         p, text,
         os.environ.get("XTTS_SPEAKER_WAV", ""), os.environ.get("XTTS_LANGUAGE", ""),
         os.environ.get("XTTS_SPEED", ""), os.environ.get("ELEVENLABS_VOICE_ID", ""),
-        os.environ.get("OPENAI_TTS_VOICE", ""),
+        os.environ.get("ELEVENLABS_MODEL", ""), os.environ.get("OPENAI_TTS_VOICE", ""),
     ])
     return _cache_dir() / ("%s.%s" % (hashlib.sha1(bits.encode("utf-8")).hexdigest(), ext))
 
