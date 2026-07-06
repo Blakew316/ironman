@@ -147,7 +147,7 @@ body{color:var(--white);letter-spacing:.06em}
 /* weather + globe */
 #weather{right:360px;top:150px;width:80px;height:44px;border:0;background:none;text-align:center}
 #weather .t{font-size:22px;color:var(--white);font-family:var(--mono)}
-#globe{right:300px;top:140px;width:210px;height:190px}
+#globe{display:none}  /* floated with no anchor — cut for a cleaner top */
 #suits{display:none}
 #datebox,#clocktop,#cal,#apptiles{display:none}
 #suits svg{height:150px}
@@ -704,7 +704,7 @@ body{color:var(--white);letter-spacing:.06em}
   <div id="wake" title="Hands-free: listen for the wake word">WAKE</div>
   <div id="mic" title="Click and speak one command"><svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V21h2v-3.1A7 7 0 0 0 19 11z"/></svg></div>
 </div>
-<div id="status">LINK: <b id="linkState">…</b> · <b id="wakeState">CLICK WAKE, THEN SAY “JARVIS”</b> · <b id="voiceState">VOICE: …</b> · <b id="buildTag">B22</b></div>
+<div id="status">LINK: <b id="linkState">…</b> · <b id="wakeState">CLICK WAKE, THEN SAY “JARVIS”</b> · <b id="voiceState">VOICE: …</b> · <b id="buildTag">B23</b></div>
 <div id="vignette"></div>
 <div class="hudc" id="hc-tl"></div><div class="hudc" id="hc-tr"></div>
 <div class="hudc" id="hc-bl"></div><div class="hudc" id="hc-br"></div>
@@ -941,12 +941,14 @@ class CoreOrb{
     if(matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const stage=$("#stage");
     const DEFS=[
-      {x:"16px",            y:198, w:150, h:80,  t:"eq",    l:"NET TRAFFIC"},
-      {x:"16px",            y:290, w:150, h:102, t:"hex",   l:"DATA STREAM"},
-      {x:"16px",            y:404, w:150, h:118, t:"radar", l:"SENSOR ARRAY"},
-      {r:"16px",            y:626, w:150, h:74,  t:"histo", l:"PWR FLOW"},
-      {c:-300,              y:92,  w:214, h:58,  t:"eq",    l:"UPLINK SPECTRUM"},
-      {c:96,                y:92,  w:214, h:58,  t:"scope", l:"FREQ ANALYSIS"},
+      // left rail: one width, even spacing, top to bottom
+      {x:"16px",            y:198, w:170, h:80,  t:"eq",    l:"NET TRAFFIC"},
+      {x:"16px",            y:290, w:170, h:102, t:"hex",   l:"DATA STREAM"},
+      {x:"16px",            y:404, w:170, h:118, t:"radar", l:"SENSOR ARRAY"},
+      {x:"16px",            y:534, w:170, h:58,  t:"scope", l:"FREQ ANALYSIS"},
+      // right rail: same width as the system panels, slotted into the column
+      {r:"16px",            y:112, w:280, h:56,  t:"eq",    l:"UPLINK SPECTRUM"},
+      {r:"16px",            y:626, w:280, h:74,  t:"histo", l:"PWR FLOW"},
     ];
     const HEXCH="0123456789ABCDEF";
     const rnd=n=>Math.floor(Math.random()*n);
