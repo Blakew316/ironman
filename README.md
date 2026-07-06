@@ -161,6 +161,30 @@ These use each provider's **stock** synthesized voices — not voice cloning.
 Add the key to your `.env`, restart `jarvis-web`, and the HUD speaks with the
 cloud voice.
 
+### Clone your own voice (local, free)
+
+You can make the HUD speak in **your own voice** (or any voice you have the
+right to use) with local Coqui XTTS v2 — no account, no cost. Do **not** use
+this with voices you don't have the rights to.
+
+```bash
+brew install ffmpeg
+pip install -e ".[clone]"                          # installs coqui-tts (+ torch)
+
+# 1. build a clean reference clip from your recordings
+bash scripts/prepare_voice.sh path/to/your/recordings/*.mp3   # -> voices/me.wav
+
+# 2. check the clone (writes + plays voices/out.wav)
+python scripts/clone_test.py voices/me.wav
+
+# 3. enable it in the HUD: add to .env, then restart jarvis-web
+#    XTTS_SPEAKER_WAV=voices/me.wav
+```
+
+The first run downloads the model and is slow; after that each line takes a few
+seconds on CPU. The XTTS model is licensed for **personal / non-commercial**
+use. Your `voices/` folder is git-ignored so recordings stay local.
+
 > The dashboard's layout is an original recreation inspired by a fan-made
 > Iron Man desktop theme; all graphics are drawn as original SVG/CSS.
 

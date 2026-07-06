@@ -40,11 +40,14 @@ def test_tts_disabled_without_keys(monkeypatch):
 def test_tts_provider_selection(monkeypatch):
     from jarvis.web import tts
 
+    for var in ("XTTS_SPEAKER_WAV", "ELEVENLABS_API_KEY", "OPENAI_API_KEY"):
+        monkeypatch.delenv(var, raising=False)
     monkeypatch.setenv("OPENAI_API_KEY", "x")
-    monkeypatch.delenv("ELEVENLABS_API_KEY", raising=False)
     assert tts.provider() == "openai"
-    monkeypatch.setenv("ELEVENLABS_API_KEY", "y")  # elevenlabs takes precedence
+    monkeypatch.setenv("ELEVENLABS_API_KEY", "y")  # elevenlabs over openai
     assert tts.provider() == "elevenlabs"
+    monkeypatch.setenv("XTTS_SPEAKER_WAV", "voices/me.wav")  # local clone wins
+    assert tts.provider() == "xtts"
 
 
 def test_app_factory_and_stats(monkeypatch):

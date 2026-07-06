@@ -37,6 +37,8 @@ calendar = [
 ]
 config = ["python-dotenv"]
 web = ["flask>=2.0"]
+# local voice cloning (XTTS v2). Heavy (pulls in torch); personal/non-commercial.
+clone = ["coqui-tts"]
 dev = ["pytest"]
 all = [
     "pyttsx3",

@@ -26,6 +26,9 @@ credentials.json
 token.pickle
 *.pickle
 
+# Voice recordings / cloned-voice reference clips (keep personal audio local)
+voices/
+
 # OS files
 .DS_Store
 Thumbs.db
