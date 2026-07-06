@@ -97,7 +97,7 @@ body{color:var(--white);letter-spacing:.06em}
 .meter.amber>i{background:linear-gradient(90deg,var(--amber-dim),var(--amber));box-shadow:0 0 10px rgba(255,123,30,.6)}
 
 /* ---------- TOP LEFT: identity ---------- */
-#identity{left:44px;top:36px;width:340px;height:66px;display:flex;gap:12px;align-items:center;padding:8px 12px}
+#identity{left:64px;top:52px;width:340px;height:66px;display:flex;gap:12px;align-items:center;padding:8px 12px}
 #shield{width:50px;height:50px;flex:0 0 50px}
 #identity .who{font-size:15px;line-height:1.25;letter-spacing:.1em}
 #identity .who b{color:var(--cyan)}
@@ -205,9 +205,10 @@ body{color:var(--white);letter-spacing:.06em}
 .socname:hover{color:var(--amber);text-shadow:0 0 8px var(--amber)}
 
 /* ---------- BOTTOM BAR ---------- */
-#scaleL{left:14px;top:640px;width:40px;height:400px;border:0;background:none;
+#scaleL{display:none}  /* ruler removed — the clock owns the bottom-left corner now */
+#scaleL-off{left:14px;top:640px;width:40px;height:400px;border:0;background:none;
   display:flex;flex-direction:column;justify-content:space-between;font-size:11px;color:var(--dim);font-family:var(--mono)}
-#bigclock{left:150px;bottom:26px;width:360px;height:150px;border:0;background:none}
+#bigclock{left:40px;bottom:20px;width:360px;height:150px;border:0;background:none}
 #bigclock .t{font-size:96px;font-family:var(--mono);font-weight:700;line-height:.9;color:var(--white);
   text-shadow:0 0 22px rgba(42,212,255,.35)}
 #bigclock .t small{font-size:34px;color:var(--amber,#ff9628)}
@@ -220,7 +221,7 @@ body{color:var(--white);letter-spacing:.06em}
 #batt{display:none}  /* battery lives in the JARVIS ring + power line; bottom-left stays clean */
 #batt b{color:var(--cyan)}
 
-#minicpu{left:150px;bottom:190px;width:150px;height:80px;padding:6px 10px}
+#minicpu{left:40px;bottom:196px;width:150px;height:80px;padding:6px 10px}
 #minicpu .row{display:flex;justify-content:space-between;font-size:11px;margin:6px 0;color:var(--dim)}
 #wire{left:50%;margin-left:70px;bottom:26px;width:150px;height:170px}
 #folders-removed{right:470px;bottom:150px;width:210px;height:150px;border:0;background:none;
@@ -704,7 +705,7 @@ body{color:var(--white);letter-spacing:.06em}
   <div id="wake" title="Hands-free: listen for the wake word">WAKE</div>
   <div id="mic" title="Click and speak one command"><svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V21h2v-3.1A7 7 0 0 0 19 11z"/></svg></div>
 </div>
-<div id="status">LINK: <b id="linkState">…</b> · <b id="wakeState">CLICK WAKE, THEN SAY “JARVIS”</b> · <b id="voiceState">VOICE: …</b> · <b id="buildTag">B29</b></div>
+<div id="status">LINK: <b id="linkState">…</b> · <b id="wakeState">CLICK WAKE, THEN SAY “JARVIS”</b> · <b id="voiceState">VOICE: …</b> · <b id="buildTag">B30</b></div>
 <div id="vignette"></div>
 <div class="hudc" id="hc-tl"></div><div class="hudc" id="hc-tr"></div>
 <div class="hudc" id="hc-bl"></div><div class="hudc" id="hc-br"></div>
