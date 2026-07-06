@@ -51,6 +51,19 @@ body{color:var(--white);letter-spacing:.06em}
     radial-gradient(ellipse at 50% 46%, transparent 52%, rgba(0,0,0,.42) 100%),
     radial-gradient(700px 360px at 50% -6%, rgba(42,150,220,.07), transparent 70%),
     radial-gradient(800px 340px at 50% 106%, rgba(255,123,30,.05), transparent 70%)}
+/* machined HUD frame: corner brackets like the inside of the helmet */
+.hudc{position:fixed;width:110px;height:70px;z-index:59;pointer-events:none;opacity:.85;
+  filter:drop-shadow(0 0 6px rgba(42,212,255,.45))}
+.hudc::before{content:"";position:absolute;inset:0;border:0 solid rgba(42,212,255,.55)}
+.hudc::after{content:"";position:absolute;width:26px;height:2px;background:rgba(255,150,40,.65)}
+#hc-tl{top:8px;left:8px}   #hc-tl::before{border-top-width:2px;border-left-width:2px}
+#hc-tl::after{top:-2px;left:118px}
+#hc-tr{top:8px;right:8px}  #hc-tr::before{border-top-width:2px;border-right-width:2px}
+#hc-tr::after{top:-2px;right:118px}
+#hc-bl{bottom:8px;left:8px}#hc-bl::before{border-bottom-width:2px;border-left-width:2px}
+#hc-bl::after{bottom:-2px;left:118px}
+#hc-br{bottom:8px;right:8px}#hc-br::before{border-bottom-width:2px;border-right-width:2px}
+#hc-br::after{bottom:-2px;right:118px}
 .corner{position:absolute;width:12px;height:12px;border:2px solid var(--cyan);opacity:.7}
 .tl{left:-1px;top:-1px;border-right:0;border-bottom:0}
 .tr{right:-1px;top:-1px;border-left:0;border-bottom:0}
@@ -184,7 +197,7 @@ body{color:var(--white);letter-spacing:.06em}
 #bigclock{left:250px;bottom:26px;width:360px;height:150px;border:0;background:none}
 #bigclock .t{font-size:96px;font-family:var(--mono);font-weight:700;line-height:.9;color:var(--white);
   text-shadow:0 0 22px rgba(42,212,255,.35)}
-#bigclock .t small{font-size:34px;color:var(--cyan)}
+#bigclock .t small{font-size:34px;color:var(--amber,#ff9628)}
 #bigclock .sub{font-size:14px;color:var(--dim);letter-spacing:.2em;margin-top:4px}
 #cal{left:250px;top:748px;width:320px;height:120px;border:0;background:none}
 #cal table{width:100%;border-collapse:collapse;font-size:12px;font-family:var(--mono)}
@@ -681,6 +694,8 @@ body{color:var(--white);letter-spacing:.06em}
 </div>
 <div id="status">LINK: <b id="linkState">…</b> · <b id="wakeState">CLICK WAKE, THEN SAY “JARVIS”</b></div>
 <div id="vignette"></div>
+<div class="hudc" id="hc-tl"></div><div class="hudc" id="hc-tr"></div>
+<div class="hudc" id="hc-bl"></div><div class="hudc" id="hc-br"></div>
 <div id="fsBtn" title="Toggle fullscreen">⛶</div>
 
 <script>
@@ -811,10 +826,10 @@ class CoreOrb{
     const rr1=R*1.14, rr2=R*1.22;
     // fine ring
     x.lineWidth=1;
-    x.strokeStyle="rgba(120,205,255,"+(0.16*br)+")";
+    x.strokeStyle="rgba(120,205,255,"+(0.22*br)+")";
     x.beginPath(); x.arc(cx,cy,rr1,0,7); x.stroke();
     // graduation ticks (one path — cheap)
-    x.strokeStyle="rgba(120,205,255,"+(0.22*br)+")";
+    x.strokeStyle="rgba(120,205,255,"+(0.30*br)+")";
     x.beginPath();
     for(let k=0;k<72;k++){ const a=k*Math.PI/36, l=(k%6===0?9:4)*DPR;
       x.moveTo(cx+Math.cos(a)*rr2, cy+Math.sin(a)*rr2);
@@ -822,7 +837,7 @@ class CoreOrb{
     x.stroke();
     // paired sweep arcs, counter-rotating
     x.lineWidth=1.6*DPR;
-    x.strokeStyle="rgba(42,212,255,"+(0.34*br)+")";
+    x.strokeStyle="rgba(42,212,255,"+(0.44*br)+")";
     const a1=this.angle*0.7;
     x.beginPath(); x.arc(cx,cy,rr1,a1,a1+1.15); x.stroke();
     x.beginPath(); x.arc(cx,cy,rr1,a1+Math.PI,a1+Math.PI+1.15); x.stroke();
@@ -990,8 +1005,9 @@ class CoreOrb{
     const u=new SpeechSynthesisUtterance(t);
     if(JVOICE){ u.voice=JVOICE; u.lang=JVOICE.lang; } else { u.lang="en-GB"; }
     u.rate=0.92; u.pitch=0.92;   // calm, measured, refined
-    u.onstart=()=>CORE&&CORE.setState("talking");
-    u.onend=()=>CORE&&CORE.setState(listening?"listening":"idle");
+    u.onstart=()=>{_setSpeaking(true); CORE&&CORE.setState("talking");};
+    u.onend=()=>{_setSpeaking(false); CORE&&CORE.setState(listening?"listening":"idle");};
+    u.onerror=()=>_setSpeaking(false);
     speechSynthesis.cancel(); speechSynthesis.speak(u);}catch(e){} }
 
   // premium backend voice (ElevenLabs / OpenAI) when a key is configured,
@@ -1002,8 +1018,10 @@ class CoreOrb{
       .then(r=>{ clearTimeout(to); return (r.ok&&r.status!==204)?r.blob():null; }).catch(()=>null); }
   function _playBlob(blob){ return new Promise(res=>{ const url=URL.createObjectURL(blob);
     if(_audio){ try{_audio.pause();}catch(e){} }
-    _audio=new Audio(url); _audio.onended=()=>{URL.revokeObjectURL(url);res();};
-    _audio.onerror=()=>{URL.revokeObjectURL(url);res();}; _audio.play().catch(()=>res()); }); }
+    _setSpeaking(true);
+    const done=()=>{URL.revokeObjectURL(url);_setSpeaking(false);res();};
+    _audio=new Audio(url); _audio.onended=done; _audio.onerror=done;
+    _audio.play().catch(done); }); }
   // Speak a reply. Streams sentence-by-sentence (pre-fetching the next while the
   // current plays) so it starts talking almost immediately and flows naturally.
   // group sentences into ~2-sentence chunks: fewer joins = fewer awkward
@@ -1038,9 +1056,19 @@ class CoreOrb{
     browserSpeak(t);
   }
 
-  // true while JARVIS is talking (either the cloned voice or the browser one)
-  function isSpeaking(){ return (_audio&&!_audio.paused&&!_audio.ended) ||
-    (("speechSynthesis" in window)&&speechSynthesis.speaking); }
+  // Own speaking-state tracking. Chrome's speechSynthesis.speaking flag is
+  // infamous for sticking true forever, which would deafen JARVIS for good —
+  // so we track state ourselves, with a hard 30s safety release.
+  let SPEAKING=false,_speakTail=0,_spkT=null;
+  function _setSpeaking(on){ SPEAKING=on;
+    clearTimeout(_spkT);
+    if(on) _spkT=setTimeout(()=>{SPEAKING=false;_speakTail=Date.now();},30000);
+    else _speakTail=Date.now(); }
+  function isSpeaking(){ return SPEAKING || (Date.now()-_speakTail)<600; }
+  function stopSpeaking(){ _sayId++;
+    try{ if(_audio) _audio.pause(); }catch(e){}
+    try{ speechSynthesis.cancel(); }catch(e){}
+    _setSpeaking(false); }
 
   // after JARVIS answers in wake mode, keep the conversation open for a while
   // so follow-up questions don't need the wake word again
@@ -1049,6 +1077,7 @@ class CoreOrb{
     awaitT=setTimeout(()=>{awaiting=false; if(CORE&&CORE.state==="listening")CORE.setState("idle");},20000); }
 
   async function runCommand(text){ if(!text)return; showReply("· "+text+" ·","dim"); if(CORE)CORE.setState("thinking");
+    $("#cmd").value="";                                        // the question never lingers in the input
     if(LIVE||EVER_LIVE){ for(let a=0;a<2;a++){ // one retry — a busy server isn't a dead server
       try{ const r=await fetch("/api/command",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text})});
         const j=await r.json(); showReply(j.reply); await speak(j.reply); openFollowUp(); return; }
@@ -1095,7 +1124,10 @@ class CoreOrb{
   let _lastHint=0;
   function handleWakeFinal(txt){
     txt=(txt||"").toLowerCase().trim(); if(!txt) return;
-    if(isSpeaking()) return;                                   // ignore JARVIS's own voice
+    if(isSpeaking()){
+      if(txt.indexOf(WAKE)<0) return;      // his own voice echoing back — ignore
+      stopSpeaking();                      // barge-in: you said "Jarvis" — he shuts up and listens
+    }
     $("#cmd").value=txt;
     if(awaiting){ clearTimeout(awaitT); awaiting=false; runCommand(txt); return; }
     const i=txt.indexOf(WAKE);
@@ -1114,10 +1146,12 @@ class CoreOrb{
     wakeRec=new SR(); wakeRec.lang="en-US"; wakeRec.continuous=true; wakeRec.interimResults=true;
     wakeRec.onresult=e=>{ for(let k=e.resultIndex;k<e.results.length;k++){ const res=e.results[k];
         if(res.isFinal) handleWakeFinal(res[0].transcript); else $("#cmd").value=res[0].transcript; } };
-    wakeRec.onend=()=>{ if(wakeMode){ try{wakeRec.start();}catch(e){} } };   // keep it alive
+    wakeRec.onend=()=>{ if(wakeMode){ setTimeout(()=>{ try{wakeRec.start();}catch(e){} },250); } };   // keep it alive
     wakeRec.onerror=ev=>{ if(ev.error==="not-allowed"||ev.error==="service-not-allowed"){ stopWake();
-        alert("Microphone is blocked. Allow it for this page (and in System Settings → Privacy → Microphone → Chrome), then click WAKE again."); } };
-    try{ wakeRec.start(); }catch(e){} }
+        alert("Microphone is blocked. Allow it for this page (and in System Settings → Privacy → Microphone → Chrome), then click WAKE again."); }
+      else if(ev.error&&ev.error!=="no-speech"&&ev.error!=="aborted"){
+        showReply("Voice input error: "+ev.error+" — check the mic and network, sir."); } };
+    try{ wakeRec.start(); showReply("Voice online — say “Jarvis”, sir."); }catch(e){} }
   function stopWake(){ wakeMode=false; awaiting=false; clearTimeout(awaitT); setWakeUI(false);
     if(wakeRec){ try{ wakeRec.onend=null; wakeRec.stop(); }catch(e){} wakeRec=null; }
     if(CORE&&CORE.state==="listening")CORE.setState("idle"); }
