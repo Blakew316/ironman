@@ -5,6 +5,10 @@ import webbrowser
 from datetime import datetime
 from pathlib import Path
 
+# Importing config loads the project's .env (if python-dotenv is installed) so
+# keys like ANTHROPIC_API_KEY / XTTS_SPEAKER_WAV are available before any request.
+from jarvis import config  # noqa: F401
+
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 
