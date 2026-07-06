@@ -692,7 +692,7 @@ body{color:var(--white);letter-spacing:.06em}
   <div id="wake" title="Hands-free: listen for the wake word">WAKE</div>
   <div id="mic" title="Click and speak one command"><svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V21h2v-3.1A7 7 0 0 0 19 11z"/></svg></div>
 </div>
-<div id="status">LINK: <b id="linkState">…</b> · <b id="wakeState">CLICK WAKE, THEN SAY “JARVIS”</b></div>
+<div id="status">LINK: <b id="linkState">…</b> · <b id="wakeState">CLICK WAKE, THEN SAY “JARVIS”</b> · <b id="voiceState">VOICE: …</b></div>
 <div id="vignette"></div>
 <div class="hudc" id="hc-tl"></div><div class="hudc" id="hc-tr"></div>
 <div class="hudc" id="hc-bl"></div><div class="hudc" id="hc-br"></div>
@@ -1008,7 +1008,12 @@ class CoreOrb{
     u.onstart=()=>{_setSpeaking(true); CORE&&CORE.setState("talking");};
     u.onend=()=>{_setSpeaking(false); CORE&&CORE.setState(listening?"listening":"idle");};
     u.onerror=()=>_setSpeaking(false);
-    speechSynthesis.cancel(); speechSynthesis.speak(u);}catch(e){} }
+    // Chrome quirks: the engine sticks in a paused state, and a speak()
+    // issued in the same tick as cancel() is silently dropped. resume() +
+    // a short defer un-wedges both.
+    speechSynthesis.cancel();
+    setTimeout(()=>{ try{ speechSynthesis.resume(); speechSynthesis.speak(u); }catch(e){} },60);
+    }catch(e){} }
 
   // premium backend voice (ElevenLabs / OpenAI) when a key is configured,
   // otherwise fall back to the browser voice.
@@ -1019,9 +1024,21 @@ class CoreOrb{
   function _playBlob(blob){ return new Promise(res=>{ const url=URL.createObjectURL(blob);
     if(_audio){ try{_audio.pause();}catch(e){} }
     _setSpeaking(true);
-    const done=()=>{URL.revokeObjectURL(url);_setSpeaking(false);res();};
+    let finished=false;
+    const done=()=>{ if(finished)return; finished=true; URL.revokeObjectURL(url); _setSpeaking(false); res(); };
     _audio=new Audio(url); _audio.onended=done; _audio.onerror=done;
-    _audio.play().catch(done); }); }
+    _audio.play().then(()=>{ const vs=$("#voiceState"); if(vs) vs.textContent="VOICE: ON"; })
+      .catch(()=>{
+        // browser autoplay policy blocked the sound — say so and replay on
+        // the next click instead of dying silently
+        showReply("🔇 The browser blocked audio — click anywhere once, sir.");
+        clearTimeout(showReply._t);
+        const un=()=>{ removeEventListener("pointerdown",un,true);
+          try{ _audio.play().catch(()=>{}); }catch(e){}
+          setTimeout(done,15000); };
+        addEventListener("pointerdown",un,true);
+        setTimeout(done,20000);
+      }); }); }
   // Speak a reply. Streams sentence-by-sentence (pre-fetching the next while the
   // current plays) so it starts talking almost immediately and flows naturally.
   // group sentences into ~2-sentence chunks: fewer joins = fewer awkward
@@ -1046,8 +1063,10 @@ class CoreOrb{
         const blob=await next;
         if(id!==_sayId) return;                                  // superseded by a newer reply
         if(i+1<parts.length) next=_ttsFetch(parts[i+1]);         // prefetch next while this plays
-        if(blob){ ok=true; await _playBlob(blob); if(id!==_sayId) return; }
-        else { browserSpeak(parts[i]); }
+        if(blob){ ok=true; const vs=$("#voiceState"); if(vs) vs.textContent="VOICE: CLONED";
+          await _playBlob(blob); if(id!==_sayId) return; }
+        else { const vs=$("#voiceState"); if(vs) vs.textContent="VOICE: BROWSER (clone timed out)";
+          browserSpeak(parts[i]); }
       }
       if(CORE)CORE.setState((listening||wakeMode)?"listening":"idle");
       if(ok) return;
@@ -1166,9 +1185,6 @@ class CoreOrb{
       if(!document.fullscreenElement){ goFull(); }
       else { (document.exitFullscreen||document.webkitExitFullscreen).call(document); }
     }catch(e){} });
-  // fill the whole screen on the first interaction (fullscreen needs a user gesture)
-  let _fsDone=false;
-  addEventListener("pointerdown",()=>{ if(!_fsDone && !document.fullscreenElement){ _fsDone=true; goFull(); } },{capture:true});
   $("#cmd").addEventListener("keydown",e=>{ if(e.key==="Enter"){ runCommand(e.target.value.trim()); e.target.value=""; }});
   $("#ask").addEventListener("click",()=>{ const v=$("#cmd").value.trim(); if(v){ runCommand(v); $("#cmd").value=""; } });
   $$("[data-url]").forEach(el=>el.addEventListener("click",()=>{ const u=el.dataset.url; if(u&&u!=="#") open(u,"_blank","noopener"); }));
@@ -1184,7 +1200,8 @@ class CoreOrb{
   setInterval(tick,1000); poll(); setInterval(poll,2500);
   // detect a configured premium voice backend; keep checking so a server that
   // starts a moment after the page loads still gets the good voice
-  function checkTTS(){ fetch("/api/health").then(r=>r.json()).then(j=>{ TTS_ON=!!j.tts; }).catch(()=>{}); }
+  function checkTTS(){ fetch("/api/health").then(r=>r.json()).then(j=>{ TTS_ON=!!j.tts;
+    const vs=$("#voiceState"); if(vs&&vs.textContent==="VOICE: …") vs.textContent=TTS_ON?"VOICE: CLONED":"VOICE: BROWSER"; }).catch(()=>{}); }
   checkTTS(); setInterval(checkTTS,10000);
   // verify the reasoning brain and pin any failure on screen so a broken key
   // or empty API balance is impossible to miss
