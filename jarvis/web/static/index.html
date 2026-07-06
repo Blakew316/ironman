@@ -211,6 +211,10 @@ body{color:var(--white);letter-spacing:.06em}
 #mic svg{width:18px;height:18px;fill:var(--cyan)}
 #mic.live{border-color:var(--cyan);box-shadow:0 0 16px rgba(42,212,255,.5);animation:pulse 1.2s infinite}
 @keyframes pulse{50%{box-shadow:0 0 26px rgba(42,212,255,.9)}}
+#wake{padding:0 12px;height:40px;display:grid;place-items:center;border:1px solid var(--stroke);
+  background:rgba(6,16,22,.85);color:var(--dim);cursor:pointer;font-size:12px;letter-spacing:.18em;user-select:none}
+#wake:hover{color:var(--cyan);border-color:var(--cyan)}
+#wake.on{color:#04121a;background:var(--cyan);border-color:var(--cyan);box-shadow:0 0 16px rgba(42,212,255,.5);animation:pulse 1.6s infinite}
 
 /* rotation helpers */
 .spin{transform-origin:50% 50%;animation:spin 18s linear infinite}
@@ -627,10 +631,11 @@ body{color:var(--white);letter-spacing:.06em}
 <!-- voice dock -->
 <div id="voice">
   <div id="waves"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
-  <input id="cmd" placeholder="Speak or type a command — e.g. “what time is it”, “tell me a joke”" autocomplete="off"/>
-  <div id="mic" title="Hold to talk"><svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V21h2v-3.1A7 7 0 0 0 19 11z"/></svg></div>
+  <input id="cmd" placeholder="Say “jarvis …” (hands-free) or type a command" autocomplete="off"/>
+  <div id="wake" title="Hands-free: listen for the wake word">WAKE</div>
+  <div id="mic" title="Click and speak one command"><svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V21h2v-3.1A7 7 0 0 0 19 11z"/></svg></div>
 </div>
-<div id="status">LINK: <b id="linkState">…</b> · SAY <b>“jarvis”</b> OR TYPE</div>
+<div id="status">LINK: <b id="linkState">…</b> · <b id="wakeState">CLICK WAKE, THEN SAY “JARVIS”</b></div>
 <div id="fsBtn" title="Toggle fullscreen">⛶</div>
 
 <script>
@@ -947,11 +952,12 @@ class CoreOrb{
   }
 
   // Web Speech recognition
-  const SR=window.SpeechRecognition||window.webkitSpeechRecognition; let rec=null,listening=false;
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  let rec=null,listening=false,wakeMode=false,wakeRec=null,awaiting=false,awaitT=null;
   const waves=$$("#waves i");
   function animWaves(on){ waves.forEach(w=>{ w.style.transition="height .12s"; }); if(!on){waves.forEach(w=>w.style.height="20%");return;}
-    (function loop(){ if(!listening)return; waves.forEach(w=>w.style.height=(15+Math.random()*85)+"%"); requestAnimationFrame(()=>setTimeout(loop,90)); })(); }
-  function startListen(){ if(!SR){ $("#cmd").focus(); return; }
+    (function loop(){ if(!listening&&!wakeMode)return; waves.forEach(w=>w.style.height=(15+Math.random()*85)+"%"); requestAnimationFrame(()=>setTimeout(loop,90)); })(); }
+  function startListen(){ if(wakeMode)return; if(!SR){ $("#cmd").focus(); return; }
     if(listening)return; rec=new SR(); rec.lang="en-US"; rec.interimResults=true; rec.continuous=false;
     listening=true; $("#mic").classList.add("live"); animWaves(true); if(CORE)CORE.setState("listening");
     rec.onresult=e=>{ const txt=Array.from(e.results).map(r=>r[0].transcript).join(""); $("#cmd").value=txt;
@@ -960,10 +966,38 @@ class CoreOrb{
     rec.onerror=()=>{ listening=false; $("#mic").classList.remove("live"); animWaves(false); if(CORE&&CORE.state==="listening")CORE.setState("idle"); };
     try{rec.start();}catch(e){} }
 
+  // ---- hands-free wake word: say "jarvis ..." ----
+  const WAKE="jarvis";
+  function setWakeUI(on){ $("#wake").classList.toggle("on",on);
+    $("#wakeState").textContent=on?"LISTENING — SAY “JARVIS …”":"CLICK WAKE, THEN SAY “JARVIS”"; animWaves(on); }
+  function handleWakeFinal(txt){
+    txt=(txt||"").toLowerCase().trim(); if(!txt) return; $("#cmd").value=txt;
+    if(awaiting){ clearTimeout(awaitT); awaiting=false; runCommand(txt); return; }
+    const i=txt.indexOf(WAKE); if(i<0) return;                 // only act after the wake word
+    const cmd=txt.slice(i+WAKE.length).replace(/^[\s,.:;!?]+/,"").trim();
+    if(cmd){ runCommand(cmd); }
+    else { awaiting=true; if(CORE)CORE.setState("listening"); showReply("Yes, sir?");
+      clearTimeout(awaitT); awaitT=setTimeout(()=>{awaiting=false; if(CORE&&CORE.state==="listening")CORE.setState("idle");},9000); }
+  }
+  function startWake(){ if(!SR){ alert("Hands-free voice needs Chrome (Web Speech API)."); return; }
+    if(listening&&rec){ try{rec.stop();}catch(e){} }
+    wakeMode=true; setWakeUI(true);
+    wakeRec=new SR(); wakeRec.lang="en-US"; wakeRec.continuous=true; wakeRec.interimResults=true;
+    wakeRec.onresult=e=>{ for(let k=e.resultIndex;k<e.results.length;k++){ const res=e.results[k];
+        if(res.isFinal) handleWakeFinal(res[0].transcript); else $("#cmd").value=res[0].transcript; } };
+    wakeRec.onend=()=>{ if(wakeMode){ try{wakeRec.start();}catch(e){} } };   // keep it alive
+    wakeRec.onerror=ev=>{ if(ev.error==="not-allowed"||ev.error==="service-not-allowed"){ stopWake();
+        alert("Microphone is blocked. Allow it for this page (and in System Settings → Privacy → Microphone → Chrome), then click WAKE again."); } };
+    try{ wakeRec.start(); }catch(e){} }
+  function stopWake(){ wakeMode=false; awaiting=false; clearTimeout(awaitT); setWakeUI(false);
+    if(wakeRec){ try{ wakeRec.onend=null; wakeRec.stop(); }catch(e){} wakeRec=null; }
+    if(CORE&&CORE.state==="listening")CORE.setState("idle"); }
+
   /* ---------- events ---------- */
+  $("#wake").addEventListener("click",()=>wakeMode?stopWake():startWake());
   $("#mic").addEventListener("click",()=>listening?rec&&rec.stop():startListen());
-  $("#jarvisCore").addEventListener("click",()=>listening?rec&&rec.stop():startListen());
-  $("#core").addEventListener("click",()=>listening?rec&&rec.stop():startListen());
+  $("#jarvisCore").addEventListener("click",()=>wakeMode?stopWake():(listening?rec&&rec.stop():startListen()));
+  $("#core").addEventListener("click",()=>wakeMode?stopWake():(listening?rec&&rec.stop():startListen()));
   function goFull(){ try{ (document.documentElement.requestFullscreen||document.documentElement.webkitRequestFullscreen).call(document.documentElement); }catch(e){} }
   $("#fsBtn").addEventListener("click",()=>{ try{
       if(!document.fullscreenElement){ goFull(); }
