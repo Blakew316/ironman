@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>J.A.R.V.I.S — S.H.I.E.L.D. OS</title>
+<title>J.A.R.V.I.S</title>
 <style>
 :root{
   --cyan:#2ad4ff; --cyan-dim:#1a8fb8; --cyan-deep:#0b3a4a;
@@ -100,12 +100,10 @@ body{color:var(--white);letter-spacing:.06em}
 #clocktop .d{font-size:11px;color:var(--dim);letter-spacing:.18em}
 
 /* ---------- Right side stack ---------- */
-#speed{right:300px;top:96px;width:150px;height:52px;border:0;background:none;text-align:right;font-size:12px;color:var(--dim)}
+#speed{right:84px;top:64px;width:150px;height:52px;border:0;background:none;text-align:right;font-size:12px;color:var(--dim)}
 #speed b{color:var(--white)}
-#dwn{right:250px;top:92px;width:46px;height:46px}
-#filesys{right:16px;top:172px;width:280px;height:120px;padding:8px 12px}
-#filesys .row{display:flex;justify-content:space-between;font-size:12px;margin:5px 0}
-#disk{right:16px;top:300px;width:280px;height:150px;padding:8px 12px}
+#dwn{right:28px;top:60px;width:46px;height:46px}
+#disk{right:16px;top:180px;width:280px;height:150px;padding:8px 12px}
 #disk h4{font-size:12px;letter-spacing:.24em;color:var(--cyan);text-align:center;margin-bottom:6px}
 #disk .row{margin:8px 0}
 #disk .row .top{display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px}
@@ -131,20 +129,18 @@ body{color:var(--white);letter-spacing:.06em}
 #stark span{font-size:11px;color:var(--dim);display:block;letter-spacing:.4em}
 #gear{left:300px;top:205px;width:190px;height:190px}
 .arcR{filter:drop-shadow(0 0 16px rgba(42,212,255,.30))}
-#arc2{left:1195px;top:105px;width:120px;height:120px}
-#arc3{left:88px;bottom:42px;width:130px;height:130px}
 #hex{left:40px;top:430px;width:220px;height:150px}
 
 /* ---------- CENTER ---------- */
-#system{right:16px;top:470px;width:280px;height:150px;padding:10px 14px}
+#system{right:16px;top:360px;width:280px;height:150px;padding:10px 14px}
 #system h4{font-size:13px;letter-spacing:.34em;text-align:center;color:var(--cyan);margin-bottom:10px}
 #system .row{margin:9px 0}
 #system .row .top{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px}
-#drive{right:16px;top:630px;width:280px;height:70px;padding:8px 14px}
+#drive{right:16px;top:530px;width:280px;height:70px;padding:8px 14px}
 #drive .top{display:flex;justify-content:space-between;font-size:11px;color:var(--dim);margin-bottom:4px}
 
 #hero{display:none!important}
-#core{left:510px;top:60px;width:900px;height:900px;pointer-events:auto;cursor:pointer;
+#core{left:455px;top:15px;width:1010px;height:1010px;pointer-events:auto;cursor:pointer;
   filter:drop-shadow(0 0 26px rgba(255,150,50,.28))}
 #core.talk{filter:drop-shadow(0 0 46px rgba(80,170,255,.5))}
 /* drop-in centerpiece image: place a file at static/centerpiece.png and it
@@ -190,7 +186,7 @@ body{color:var(--white);letter-spacing:.06em}
 #minicpu{left:250px;bottom:190px;width:150px;height:80px;padding:6px 10px}
 #minicpu .row{display:flex;justify-content:space-between;font-size:11px;margin:6px 0;color:var(--dim)}
 #wire{left:1030px;bottom:26px;width:150px;height:170px}
-#folders{right:470px;bottom:150px;width:210px;height:150px;border:0;background:none;
+#folders-removed{right:470px;bottom:150px;width:210px;height:150px;border:0;background:none;
   display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
 .folder{font-size:11px;letter-spacing:.08em;color:var(--dim);text-align:center;cursor:pointer}
 .folder:hover{color:var(--cyan)}
@@ -265,7 +261,7 @@ body{color:var(--white);letter-spacing:.06em}
     <circle class="spin-r" cx="50" cy="50" r="32" fill="none" stroke="#2ad4ff" stroke-width="1" stroke-dasharray="10 20" opacity=".7"/>
     <circle class="pulse" cx="50" cy="50" r="10" fill="#2ad4ff"/>
   </svg>
-  <div class="title"><h1>J.A.R.V.I.S</h1><p>S.H.I.E.L.D. OPERATING SYSTEM</p></div>
+  <div class="title"><h1>J.A.R.V.I.S</h1><p>JUST A RATHER VERY INTELLIGENT SYSTEM</p></div>
   <div class="log" id="bootlog"></div>
 </div>
 
@@ -361,10 +357,9 @@ body{color:var(--white);letter-spacing:.06em}
       <path d="M50 30 L50 74 M32 45 L68 45" stroke="#04070b" stroke-width="2"/>
     </svg>
     <div>
-      <div class="who">Ironman <b>JARVIS</b><br>+ S.H.I.E.L.D. OS</div>
+      <div class="who">Ironman <b>JARVIS</b></div>
       <div class="sub" id="idsub">… ONLINE …</div>
     </div>
-    <div class="avatar"></div>
   </div>
 
   <!-- top bar -->
@@ -403,12 +398,6 @@ body{color:var(--white);letter-spacing:.06em}
     <circle class="spin" cx="50" cy="50" r="44" fill="none" stroke="#2ad4ff" stroke-width="4" stroke-dasharray="40 240"/>
     <path d="M50 34 V60 M40 52 l10 10 10-10" stroke="#2ad4ff" stroke-width="3" fill="none"/>
   </svg>
-
-  <div class="panel" id="filesys">
-    <span class="corner tl"></span><span class="corner br"></span>
-    <div class="lbl" style="text-align:center;margin-bottom:6px">File Systems</div>
-    <div id="fsRows"></div>
-  </div>
 
   <div class="panel" id="disk">
     <span class="corner tr"></span><span class="corner bl"></span>
@@ -460,8 +449,6 @@ body{color:var(--white);letter-spacing:.06em}
   <div id="stark">STARK INDUSTRIES<span>ARC TECHNOLOGY</span></div>
 
   <svg id="gear" class="arcR" viewBox="-100 -100 200 200"><use href="#arcReactor"/></svg>
-  <svg id="arc2" class="arcR" viewBox="-100 -100 200 200"><use href="#arcReactor"/></svg>
-  <svg id="arc3" class="arcR" viewBox="-100 -100 200 200"><use href="#arcReactor"/></svg>
 
   <svg id="hex" viewBox="0 0 220 150"></svg>
 
@@ -655,15 +642,6 @@ body{color:var(--white);letter-spacing:.06em}
     <circle cx="75" cy="80" r="45" fill="none" stroke="var(--cyan)" opacity=".4"/>
   </svg>
 
-  <div id="folders">
-    <div class="folder" data-url="#"><svg viewBox="0 0 34 26" fill="none" stroke="#2ad4ff"><path d="M2 6h10l3 3h17v14H2z"/></svg>Downloads</div>
-    <div class="folder" data-url="https://dropbox.com"><svg viewBox="0 0 34 26" fill="none" stroke="#2ad4ff"><path d="M2 6h10l3 3h17v14H2z"/></svg>Dropbox</div>
-    <div class="folder" data-url="#"><svg viewBox="0 0 34 26" fill="none" stroke="#2ad4ff"><path d="M2 6h10l3 3h17v14H2z"/></svg>Music</div>
-    <div class="folder" data-url="#"><svg viewBox="0 0 34 26" fill="none" stroke="#2ad4ff"><path d="M2 6h10l3 3h17v14H2z"/></svg>Documents</div>
-    <div class="folder" data-url="#"><svg viewBox="0 0 34 26" fill="none" stroke="#2ad4ff"><path d="M2 6h10l3 3h17v14H2z"/></svg>Pictures</div>
-    <div class="folder" data-url="#"><svg viewBox="0 0 34 26" fill="none" stroke="#2ad4ff"><path d="M2 6h10l3 3h17v14H2z"/></svg>Videos</div>
-  </div>
-
   <div id="player">
     <div class="tbtn" data-media="prev"><svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm12 0v12l-9-6z"/></svg></div>
     <div class="tbtn" id="playBtn" data-media="play"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div>
@@ -816,6 +794,31 @@ class CoreOrb{
     x.fillStyle="rgba(255,255,255,"+Math.min(1,0.75*br+this.amp*0.25)+")";
     x.beginPath(); x.arc(cx,cy,cs*0.42,0,7); x.fill();
 
+    // ---- holographic gimbal (the JARVIS targeting-interface look) ----
+    const rr1=R*1.14, rr2=R*1.22;
+    // fine ring
+    x.lineWidth=1;
+    x.strokeStyle="rgba(120,205,255,"+(0.16*br)+")";
+    x.beginPath(); x.arc(cx,cy,rr1,0,7); x.stroke();
+    // graduation ticks (one path — cheap)
+    x.strokeStyle="rgba(120,205,255,"+(0.22*br)+")";
+    x.beginPath();
+    for(let k=0;k<72;k++){ const a=k*Math.PI/36, l=(k%6===0?9:4)*DPR;
+      x.moveTo(cx+Math.cos(a)*rr2, cy+Math.sin(a)*rr2);
+      x.lineTo(cx+Math.cos(a)*(rr2+l), cy+Math.sin(a)*(rr2+l)); }
+    x.stroke();
+    // paired sweep arcs, counter-rotating
+    x.lineWidth=1.6*DPR;
+    x.strokeStyle="rgba(42,212,255,"+(0.34*br)+")";
+    const a1=this.angle*0.7;
+    x.beginPath(); x.arc(cx,cy,rr1,a1,a1+1.15); x.stroke();
+    x.beginPath(); x.arc(cx,cy,rr1,a1+Math.PI,a1+Math.PI+1.15); x.stroke();
+    x.lineWidth=1;
+    x.strokeStyle="rgba(160,232,255,"+(0.28*br)+")";
+    const a2=-this.angle*0.45;
+    for(let k=0;k<3;k++){ const s0=a2+k*2.0944;
+      x.beginPath(); x.arc(cx,cy,rr2+12*DPR,s0,s0+0.55); x.stroke(); }
+
     requestAnimationFrame(this._loop);
   }
 }
@@ -826,7 +829,7 @@ class CoreOrb{
 
   /* ---------- boot sequence ---------- */
   const lines=[
-    "> mounting S.H.I.E.L.D. kernel ......... OK",
+    "> mounting J.A.R.V.I.S kernel ......... OK",
     "> arc reactor ............. 100% stable",
     "> loading neural interface ......... OK",
     "> calibrating sensors [cpu|ram|net] OK",
@@ -914,7 +917,7 @@ class CoreOrb{
     if(s.disk&&s.disk.length){ const d=s.disk[0]; $("#driveTot").textContent=(d.total_gb||0)+" GB"; setMeter("#driveBar",d.percent);
       $("#diskRows").innerHTML=s.disk.map(x=>`<div class="row"><div class="top"><span>${(x.name||x.mount).slice(0,10)}</span>
         <span class="mono">${x.used_gb}/${x.total_gb} GB</span></div><div class="meter"><i style="width:${x.percent}%"></i></div></div>`).join("");
-      $("#fsRows").innerHTML=s.disk.map(x=>`<div class="row"><span class="dim">${(x.mount||'').slice(0,14)}</span><span class="mono">${x.total_gb} GB</span></div>`).join(""); }
+      const fsr=$("#fsRows"); if(fsr) fsr.innerHTML=s.disk.map(x=>`<div class="row"><span class="dim">${(x.mount||'').slice(0,14)}</span><span class="mono">${x.total_gb} GB</span></div>`).join(""); }
     if(s.net_down!=null&&s.net_down>0) $("#netTotal").textContent=(s.net_down/1e9).toFixed(1)+" GB";
     else if(s.net_total_gb) $("#netTotal").textContent=s.net_total_gb+" GB";
   }
@@ -1037,7 +1040,7 @@ class CoreOrb{
     if(/date|day/.test(t)) return "Today is "+now.toLocaleDateString(undefined,{weekday:"long",day:"numeric",month:"long",year:"numeric"});
     if(/joke/.test(t)) return "Why do programmers prefer dark mode? Because light attracts bugs.";
     if(/hello|hi|hey/.test(t)) return "Hello, sir. JARVIS at your service.";
-    if(/who are you|your name/.test(t)) return "I am JARVIS, your S.H.I.E.L.D. operating system.";
+    if(/who are you|your name/.test(t)) return "I am JARVIS — just a rather very intelligent system.";
     if(/battery|power/.test(t)) return "Power level is at "+$("#battTxt").textContent+" and holding steady.";
     if(/cpu/.test(t)) return "CPU usage is "+$("#cpuTxt").textContent;
     if(/ram|memory/.test(t)) return "System memory usage is "+$("#ramTxt").textContent;

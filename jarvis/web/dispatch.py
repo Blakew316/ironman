@@ -198,7 +198,7 @@ def handle(text):
     if has("are you there", "you awake", "you up", "you alive", "you dead", "wake up", "daddy s home"):
         return {"reply": _r(ap.check_r), "intent": "status"}
     if has("who are you", "what are you", "your name", "introduce yourself"):
-        return {"reply": "I am %s, your S.H.I.E.L.D. operating system, sir." % config.ASSISTANT_NAME,
+        return {"reply": "I am %s, sir — just a rather very intelligent system, at your service." % config.ASSISTANT_NAME,
                 "intent": "identity"}
 
     # --- greetings ---
