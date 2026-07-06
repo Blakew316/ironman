@@ -115,6 +115,7 @@ body{color:var(--white);letter-spacing:.06em}
 #weather .t{font-size:22px;color:var(--white);font-family:var(--mono)}
 #globe{right:300px;top:140px;width:210px;height:190px}
 #suits{display:none}
+#datebox,#clocktop,#cal,#apptiles{display:none}
 #suits svg{height:150px}
 
 /* ---------- LEFT column ---------- */
@@ -383,10 +384,6 @@ body{color:var(--white);letter-spacing:.06em}
   <div id="apps">
     <div class="applaunch" data-url="https://www.google.com/chrome/"><span class="dot"></span>Chrome</div>
     <div class="applaunch" data-url="#"><span class="dot"></span>Control Panel</div>
-    <div class="applaunch" data-url="https://www.videolan.org/"><span class="dot"></span>VLC Player</div>
-    <div class="applaunch" data-url="https://www.mozilla.org/firefox/"><span class="dot"></span>Mozilla Firefox</div>
-    <div class="applaunch" data-url="#"><span class="dot"></span>uTorrent</div>
-    <div class="applaunch" data-url="#"><span class="dot"></span>Skype</div>
   </div>
   <div id="stark">STARK INDUSTRIES<span>ARC TECHNOLOGY</span></div>
 
@@ -569,12 +566,9 @@ body{color:var(--white);letter-spacing:.06em}
       <circle cx="160" cy="160" r="60" fill="none" stroke="#ff7b1e" stroke-width="1"/>
       <circle cx="160" cy="160" r="22" fill="#ff7b1e" class="pulse"/>
     </svg>
-    <div class="socname" style="right:2px;top:20px" data-url="https://gmail.com">◦ Mail</div>
-    <div class="socname" style="right:-6px;top:80px" data-url="https://google.com">◦ Google</div>
-    <div class="socname" style="right:-16px;top:140px" data-url="https://deviantart.com">◦ Deviantart</div>
-    <div class="socname" style="right:-10px;top:200px" data-url="https://youtube.com">◦ Youtube</div>
-    <div class="socname" style="right:4px;top:250px" data-url="https://twitter.com">◦ Twitter</div>
-    <div class="socname" style="right:24px;top:292px" data-url="https://facebook.com">◦ Facebook</div>
+    <div class="socname" style="right:-8px;top:70px" data-url="https://google.com">◦ Google</div>
+    <div class="socname" style="right:-8px;top:150px" data-url="https://youtube.com">◦ Youtube</div>
+    <div class="socname" style="right:8px;top:230px" data-url="https://facebook.com">◦ Facebook</div>
   </div>
 
   <!-- bottom bar -->
@@ -779,7 +773,9 @@ class CoreOrb{
   ];
   let bi=0; const blog=$("#bootlog");
   const bt=setInterval(()=>{ if(bi<lines.length){blog.innerHTML+=lines[bi++]+"<br>";}
-    else{clearInterval(bt); setTimeout(()=>{$("#boot").classList.add("hide");speak("J.A.R.V.I.S online. Welcome back, sir.");},500);} },340);
+    else{clearInterval(bt); setTimeout(()=>{$("#boot").classList.add("hide");speak(greeting());},500);} },340);
+  function greeting(){ const h=new Date().getHours();
+    return h<12?"Good morning, sir.":(h<18?"Good afternoon, sir.":"Good evening, sir."); }
 
   /* ---------- responsive scaling ---------- */
   function fit(){ // stretch the HUD to fill the whole window edge-to-edge
@@ -903,27 +899,33 @@ class CoreOrb{
 
   // premium backend voice (ElevenLabs / OpenAI) when a key is configured,
   // otherwise fall back to the browser voice.
-  let TTS_ON=false, _audio=null;
+  let TTS_ON=false, _audio=null, _sayId=0;
+  function _ttsFetch(s){ const ctl=new AbortController(); const to=setTimeout(()=>ctl.abort(),45000);
+    return fetch("/api/tts",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:s}),signal:ctl.signal})
+      .then(r=>{ clearTimeout(to); return (r.ok&&r.status!==204)?r.blob():null; }).catch(()=>null); }
+  function _playBlob(blob){ return new Promise(res=>{ const url=URL.createObjectURL(blob);
+    if(_audio){ try{_audio.pause();}catch(e){} }
+    _audio=new Audio(url); _audio.onended=()=>{URL.revokeObjectURL(url);res();};
+    _audio.onerror=()=>{URL.revokeObjectURL(url);res();}; _audio.play().catch(()=>res()); }); }
+  // Speak a reply. Streams sentence-by-sentence (pre-fetching the next while the
+  // current plays) so it starts talking almost immediately and flows naturally.
   async function speak(t){
     if(!t) return;
     if(TTS_ON && LIVE){
-      try{
-        const ctl=new AbortController();
-        const to=setTimeout(()=>ctl.abort(), 45000);  // never hang the UI forever
-        const r=await fetch("/api/tts",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:t}),signal:ctl.signal});
-        clearTimeout(to);
-        if(r.ok && r.status!==204){
-          const url=URL.createObjectURL(await r.blob());
-          try{ speechSynthesis.cancel(); }catch(e){}
-          if(_audio){ try{_audio.pause();}catch(e){} }
-          _audio=new Audio(url);
-          _audio.onplay=()=>CORE&&CORE.setState("talking");
-          _audio.onended=()=>{ CORE&&CORE.setState(listening?"listening":"idle"); URL.revokeObjectURL(url); };
-          _audio.onerror=()=>{ URL.revokeObjectURL(url); browserSpeak(t); };
-          await _audio.play();
-          return;
-        }
-      }catch(e){/* timeout / abort / network -> browser voice */}
+      const parts=(String(t).match(/[^.!?]+[.!?]*/g)||[t]).map(s=>s.trim()).filter(Boolean);
+      const id=++_sayId; try{ speechSynthesis.cancel(); }catch(e){}
+      if(CORE)CORE.setState("talking");
+      let next=_ttsFetch(parts[0]), ok=false;
+      for(let i=0;i<parts.length;i++){
+        const blob=await next;
+        if(id!==_sayId) return;                                  // superseded by a newer reply
+        if(i+1<parts.length) next=_ttsFetch(parts[i+1]);         // prefetch next while this plays
+        if(blob){ ok=true; await _playBlob(blob); if(id!==_sayId) return; }
+        else { browserSpeak(parts[i]); }
+      }
+      if(CORE)CORE.setState((listening||wakeMode)?"listening":"idle");
+      if(ok) return;
+      return;                                                    // handled (voice or browser fallback per-sentence)
     }
     browserSpeak(t);
   }

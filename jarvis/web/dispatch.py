@@ -49,9 +49,11 @@ def _norm(t):
 
 
 _SYSTEM = (
-    "You are J.A.R.V.I.S, a calm, dry-witted, highly capable British AI assistant "
-    "(in the spirit of Tony Stark's assistant). Answer concisely in 1-3 sentences "
-    "and address the user as 'sir'."
+    "You are J.A.R.V.I.S, a calm, warm, dry-witted British AI assistant in the "
+    "spirit of Tony Stark's assistant. Speak naturally and conversationally, keep "
+    "replies brief (1-3 sentences unless asked for more), and address the user as "
+    "'sir'. When a question needs current or real-time information (news, prices, "
+    "weather, live facts), use web search to look it up before answering."
 )
 
 
@@ -84,15 +86,29 @@ def _chat(prompt):
     try:
         if provider == "anthropic":
             model = os.environ.get("JARVIS_CHAT_MODEL", "claude-haiku-4-5-20251001")
-            data = _post_json(
-                "https://api.anthropic.com/v1/messages",
-                {"x-api-key": os.environ["ANTHROPIC_API_KEY"],
-                 "anthropic-version": "2023-06-01", "content-type": "application/json"},
-                {"model": model, "max_tokens": 300, "system": _SYSTEM,
-                 "messages": [{"role": "user", "content": prompt}]},
-            )
-            parts = [b.get("text", "") for b in data.get("content", []) if b.get("type") == "text"]
-            return ("".join(parts)).strip() or None
+            headers = {"x-api-key": os.environ["ANTHROPIC_API_KEY"],
+                       "anthropic-version": "2023-06-01", "content-type": "application/json"}
+            base = {"model": model, "max_tokens": 400, "system": _SYSTEM,
+                    "messages": [{"role": "user", "content": prompt}]}
+            # Try with live web search first; if the tool isn't available on the
+            # account/model, retry the same request without it.
+            attempts = []
+            if os.environ.get("JARVIS_WEB_SEARCH", "1") != "0":
+                with_tool = dict(base)
+                with_tool["tools"] = [{"type": "web_search_20250305", "name": "web_search", "max_uses": 5}]
+                attempts.append(with_tool)
+            attempts.append(base)
+            for payload in attempts:
+                try:
+                    data = _post_json("https://api.anthropic.com/v1/messages", headers, payload)
+                except Exception as exc:
+                    print("[dispatch] claude call failed: %s" % exc)
+                    continue
+                parts = [b.get("text", "") for b in data.get("content", []) if b.get("type") == "text"]
+                txt = ("".join(parts)).strip()
+                if txt:
+                    return txt
+            return None
 
         model = os.environ.get("JARVIS_CHAT_MODEL", "gpt-4o-mini")
         data = _post_json(
