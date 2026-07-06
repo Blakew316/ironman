@@ -150,25 +150,24 @@ def _elevenlabs(text):
         "Content-Type": "application/json",
         "Accept": "audio/mpeg",
     }
-    def _f(name, default):
-        try:
-            return float(os.environ.get(name, default))
-        except ValueError:
-            return default
-    settings = {"stability": _f("ELEVENLABS_STABILITY", 0.40),
-                "similarity_boost": _f("ELEVENLABS_SIMILARITY", 0.80),
-                "style": _f("ELEVENLABS_STYLE", 0.35),
-                "use_speaker_boost": True}
-    # speaking pace: ELEVENLABS_SPEED, e.g. 0.9 = measured, 1.1 = brisk
-    if os.environ.get("ELEVENLABS_SPEED"):
-        settings["speed"] = _f("ELEVENLABS_SPEED", 1.0)
-    body = json.dumps({
-        "text": text,
-        "model_id": model,
-        # tune via ELEVENLABS_STABILITY / _STYLE / _SPEED in .env
-        "voice_settings": settings,
-    }).encode("utf-8")
-    return _post(url, headers, body)
+    # Only send voice settings the user explicitly configured. With none set,
+    # ElevenLabs applies the voice's OWN stored settings — the same ones its
+    # site preview is rendered with, so the voice sounds like its preview.
+    settings = {}
+    for env, key in (("ELEVENLABS_STABILITY", "stability"),
+                     ("ELEVENLABS_SIMILARITY", "similarity_boost"),
+                     ("ELEVENLABS_STYLE", "style"),
+                     ("ELEVENLABS_SPEED", "speed")):
+        v = os.environ.get(env)
+        if v:
+            try:
+                settings[key] = float(v)
+            except ValueError:
+                pass
+    payload = {"text": text, "model_id": model}
+    if settings:
+        payload["voice_settings"] = settings
+    return _post(url, headers, json.dumps(payload).encode("utf-8"))
 
 
 def _openai(text):
