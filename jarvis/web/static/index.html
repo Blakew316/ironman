@@ -39,8 +39,18 @@ body{color:var(--white);letter-spacing:.06em}
 /* every direct child of the stage is absolutely placed on the 1920x1080 canvas */
 #stage>*{position:absolute}
 .panel{position:absolute;border:1px solid var(--stroke-soft);
-  background:linear-gradient(180deg,rgba(8,20,28,.6),rgba(4,10,14,.35));
-  box-shadow:inset 0 0 18px rgba(42,212,255,.06)}
+  background:linear-gradient(180deg,rgba(8,20,28,.72),rgba(4,10,14,.42));
+  box-shadow:inset 0 0 26px rgba(42,212,255,.09), 0 0 18px rgba(0,0,0,.35);
+  clip-path:polygon(0 0,calc(100% - 14px) 0,100% 14px,100% 100%,14px 100%,0 calc(100% - 14px))}
+.panel h4{position:relative;padding-left:11px}
+.panel h4::before{content:"";position:absolute;left:0;top:1px;bottom:1px;width:3px;
+  background:linear-gradient(180deg,var(--cyan),rgba(255,150,40,.55));box-shadow:0 0 8px rgba(42,212,255,.7)}
+/* deep-space vignette + arc-light aura, layered over everything */
+#vignette{position:fixed;inset:0;pointer-events:none;z-index:60;
+  background:
+    radial-gradient(ellipse at 50% 46%, transparent 52%, rgba(0,0,0,.42) 100%),
+    radial-gradient(700px 360px at 50% -6%, rgba(42,150,220,.07), transparent 70%),
+    radial-gradient(800px 340px at 50% 106%, rgba(255,123,30,.05), transparent 70%)}
 .corner{position:absolute;width:12px;height:12px;border:2px solid var(--cyan);opacity:.7}
 .tl{left:-1px;top:-1px;border-right:0;border-bottom:0}
 .tr{right:-1px;top:-1px;border-left:0;border-bottom:0}
@@ -125,6 +135,7 @@ body{color:var(--white);letter-spacing:.06em}
 .applaunch:hover{background:linear-gradient(90deg,rgba(20,60,80,.95),rgba(6,14,20,.3));padding-left:18px;color:var(--cyan)}
 .applaunch .dot{width:7px;height:7px;border-radius:50%;background:var(--cyan);box-shadow:0 0 8px var(--cyan)}
 #stark{left:300px;top:150px;width:210px;height:34px;border:0;background:none;color:var(--cyan);
+  text-shadow:0 0 14px rgba(42,212,255,.55);
   font-size:20px;letter-spacing:.12em;font-weight:700;opacity:.75}
 #stark span{font-size:11px;color:var(--dim);display:block;letter-spacing:.4em}
 #gear{left:300px;top:205px;width:190px;height:190px}
@@ -140,7 +151,7 @@ body{color:var(--white);letter-spacing:.06em}
 #drive .top{display:flex;justify-content:space-between;font-size:11px;color:var(--dim);margin-bottom:4px}
 
 #hero{display:none!important}
-#core{left:455px;top:15px;width:1010px;height:1010px;pointer-events:auto;cursor:pointer;
+#core{left:50%;margin-left:-505px;top:15px;width:1010px;height:1010px;pointer-events:auto;cursor:pointer;
   filter:drop-shadow(0 0 26px rgba(255,150,50,.28))}
 #core.talk{filter:drop-shadow(0 0 46px rgba(80,170,255,.5))}
 /* drop-in centerpiece image: place a file at static/centerpiece.png and it
@@ -155,7 +166,7 @@ body{color:var(--white);letter-spacing:.06em}
 .weblink:hover{color:var(--cyan);text-shadow:0 0 10px var(--cyan)}
 .weblink.big{font-size:19px;color:var(--cyan)}
 
-#powerline{left:640px;top:915px;width:640px;text-align:center;border:0;background:none}
+#powerline{left:50%;margin-left:-320px;top:915px;width:640px;text-align:center;border:0;background:none}
 #powerline .t{font-size:17px;letter-spacing:.12em;color:var(--white)}
 #powerline .t b{color:var(--cyan);font-family:var(--mono)}
 
@@ -180,12 +191,12 @@ body{color:var(--white);letter-spacing:.06em}
 #cal td,#cal th{padding:2px 0;text-align:center;color:var(--dim)}
 #cal th{color:var(--cyan);font-weight:400}
 #cal td.on{background:var(--cyan);color:#04121a;border-radius:2px}
-#batt{left:250px;bottom:8px;width:300px;height:20px;border:0;background:none;font-size:12px;display:flex;gap:14px;color:var(--dim)}
+#batt{display:none}  /* battery lives in the JARVIS ring + power line; bottom-left stays clean */
 #batt b{color:var(--cyan)}
 
 #minicpu{left:250px;bottom:190px;width:150px;height:80px;padding:6px 10px}
 #minicpu .row{display:flex;justify-content:space-between;font-size:11px;margin:6px 0;color:var(--dim)}
-#wire{left:1030px;bottom:26px;width:150px;height:170px}
+#wire{left:50%;margin-left:70px;bottom:26px;width:150px;height:170px}
 #folders-removed{right:470px;bottom:150px;width:210px;height:150px;border:0;background:none;
   display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
 .folder{font-size:11px;letter-spacing:.08em;color:var(--dim);text-align:center;cursor:pointer}
@@ -212,7 +223,8 @@ body{color:var(--white);letter-spacing:.06em}
 #mic.live{border-color:var(--cyan);box-shadow:0 0 16px rgba(42,212,255,.5);animation:pulse 1.2s infinite}
 @keyframes pulse{50%{box-shadow:0 0 26px rgba(42,212,255,.9)}}
 #wake,#ask{padding:0 12px;height:40px;display:grid;place-items:center;border:1px solid var(--stroke);
-  background:rgba(6,16,22,.85);color:var(--dim);cursor:pointer;font-size:12px;letter-spacing:.18em;user-select:none}
+  background:rgba(6,16,22,.85);color:var(--dim);cursor:pointer;font-size:12px;letter-spacing:.18em;user-select:none;
+  clip-path:polygon(7px 0,100% 0,100% calc(100% - 7px),calc(100% - 7px) 100%,0 100%,0 7px)}
 #wake:hover,#ask:hover{color:var(--cyan);border-color:var(--cyan)}
 #ask{color:var(--cyan)}
 #wake.on{color:#04121a;background:var(--cyan);border-color:var(--cyan);box-shadow:0 0 16px rgba(42,212,255,.5);animation:pulse 1.6s infinite}
@@ -245,7 +257,7 @@ body{color:var(--white);letter-spacing:.06em}
 #boot .title h1{font-family:var(--hud);font-size:44px;letter-spacing:.4em;color:var(--white);text-shadow:0 0 20px var(--cyan)}
 #boot .title p{color:var(--dim);letter-spacing:.5em;font-size:13px;margin-top:8px}
 
-#status{position:fixed;left:12px;bottom:8px;font-family:var(--mono);font-size:11px;color:var(--dim);z-index:41}
+#status{position:fixed;right:14px;bottom:8px;font-family:var(--mono);font-size:11px;color:var(--dim);z-index:41;text-align:right}
 #status b{color:var(--cyan)}
 #fsBtn{position:fixed;top:10px;right:12px;z-index:60;width:34px;height:34px;border:1px solid var(--stroke);
   background:rgba(6,16,22,.82);color:var(--cyan);cursor:pointer;display:grid;place-items:center;font-size:17px;line-height:1}
@@ -668,6 +680,7 @@ body{color:var(--white);letter-spacing:.06em}
   <div id="mic" title="Click and speak one command"><svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V21h2v-3.1A7 7 0 0 0 19 11z"/></svg></div>
 </div>
 <div id="status">LINK: <b id="linkState">…</b> · <b id="wakeState">CLICK WAKE, THEN SAY “JARVIS”</b></div>
+<div id="vignette"></div>
 <div id="fsBtn" title="Toggle fullscreen">⛶</div>
 
 <script>
@@ -818,6 +831,11 @@ class CoreOrb{
     const a2=-this.angle*0.45;
     for(let k=0;k<3;k++){ const s0=a2+k*2.0944;
       x.beginPath(); x.arc(cx,cy,rr2+12*DPR,s0,s0+0.55); x.stroke(); }
+    // single amber tracker — the Stark HUD's warm accent against the cyan
+    x.lineWidth=2*DPR;
+    x.strokeStyle="rgba(255,150,40,"+(0.30*br)+")";
+    const a3=this.angle*0.32+2.4;
+    x.beginPath(); x.arc(cx,cy,rr2+12*DPR,a3,a3+0.28); x.stroke();
 
     requestAnimationFrame(this._loop);
   }
@@ -844,8 +862,16 @@ class CoreOrb{
     return h<12?"Good morning, sir.":(h<18?"Good afternoon, sir.":"Good evening, sir."); }
 
   /* ---------- responsive scaling ---------- */
-  function fit(){ // stretch the HUD to fill the whole window edge-to-edge
-    $("#stage").style.transform=`scale(${innerWidth/1920},${innerHeight/1080})`; }
+  // UNIFORM scale (no distortion, ever) that still fills the whole window at
+  // any size: the stage height maps to the window height and the stage WIDTH
+  // becomes elastic — center pieces stay centered, side panels hug the edges.
+  function fit(){
+    const s=innerHeight/1080;
+    const w=Math.max(innerWidth/s,1500);
+    const st=$("#stage");
+    st.style.width=w+"px";
+    st.style.transform=`scale(${s})`;
+  }
   addEventListener("resize",fit); fit();
 
   /* ---------- the animated energy core (main centerpiece) ---------- */
@@ -971,7 +997,7 @@ class CoreOrb{
   // premium backend voice (ElevenLabs / OpenAI) when a key is configured,
   // otherwise fall back to the browser voice.
   let TTS_ON=false, _audio=null, _sayId=0;
-  function _ttsFetch(s){ const ctl=new AbortController(); const to=setTimeout(()=>ctl.abort(),45000);
+  function _ttsFetch(s){ const ctl=new AbortController(); const to=setTimeout(()=>ctl.abort(),22000);
     return fetch("/api/tts",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:s}),signal:ctl.signal})
       .then(r=>{ clearTimeout(to); return (r.ok&&r.status!==204)?r.blob():null; }).catch(()=>null); }
   function _playBlob(blob){ return new Promise(res=>{ const url=URL.createObjectURL(blob);
