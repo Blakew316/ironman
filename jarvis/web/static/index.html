@@ -212,9 +212,10 @@ body{color:var(--white);letter-spacing:.06em}
 #mic svg{width:18px;height:18px;fill:var(--cyan)}
 #mic.live{border-color:var(--cyan);box-shadow:0 0 16px rgba(42,212,255,.5);animation:pulse 1.2s infinite}
 @keyframes pulse{50%{box-shadow:0 0 26px rgba(42,212,255,.9)}}
-#wake{padding:0 12px;height:40px;display:grid;place-items:center;border:1px solid var(--stroke);
+#wake,#ask{padding:0 12px;height:40px;display:grid;place-items:center;border:1px solid var(--stroke);
   background:rgba(6,16,22,.85);color:var(--dim);cursor:pointer;font-size:12px;letter-spacing:.18em;user-select:none}
-#wake:hover{color:var(--cyan);border-color:var(--cyan)}
+#wake:hover,#ask:hover{color:var(--cyan);border-color:var(--cyan)}
+#ask{color:var(--cyan)}
 #wake.on{color:#04121a;background:var(--cyan);border-color:var(--cyan);box-shadow:0 0 16px rgba(42,212,255,.5);animation:pulse 1.6s infinite}
 
 /* rotation helpers */
@@ -625,7 +626,8 @@ body{color:var(--white);letter-spacing:.06em}
 <!-- voice dock -->
 <div id="voice">
   <div id="waves"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
-  <input id="cmd" placeholder="Say “jarvis …” (hands-free) or type a command" autocomplete="off"/>
+  <input id="cmd" placeholder="Ask me anything — Enter/ASK to send, or say “Jarvis …”" autocomplete="off"/>
+  <div id="ask" title="Send the typed question">ASK</div>
   <div id="wake" title="Hands-free: listen for the wake word">WAKE</div>
   <div id="mic" title="Click and speak one command"><svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V21h2v-3.1A7 7 0 0 0 19 11z"/></svg></div>
 </div>
@@ -935,12 +937,22 @@ class CoreOrb{
     browserSpeak(t);
   }
 
+  // true while JARVIS is talking (either the cloned voice or the browser one)
+  function isSpeaking(){ return (_audio&&!_audio.paused&&!_audio.ended) ||
+    (("speechSynthesis" in window)&&speechSynthesis.speaking); }
+
+  // after JARVIS answers in wake mode, keep the conversation open for a while
+  // so follow-up questions don't need the wake word again
+  function openFollowUp(){ if(!wakeMode) return; awaiting=true; clearTimeout(awaitT);
+    if(CORE)CORE.setState("listening");
+    awaitT=setTimeout(()=>{awaiting=false; if(CORE&&CORE.state==="listening")CORE.setState("idle");},12000); }
+
   async function runCommand(text){ if(!text)return; showReply("· "+text+" ·","dim"); if(CORE)CORE.setState("thinking");
     if(LIVE||EVER_LIVE){ for(let a=0;a<2;a++){ // one retry — a busy server isn't a dead server
       try{ const r=await fetch("/api/command",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text})});
-        const j=await r.json(); showReply(j.reply); speak(j.reply); return; }
+        const j=await r.json(); showReply(j.reply); await speak(j.reply); openFollowUp(); return; }
       catch(e){ await new Promise(res=>setTimeout(res,700)); } } }
-    const j=localAnswer(text); showReply(j); speak(j); }
+    const j=localAnswer(text); showReply(j); await speak(j); openFollowUp(); }
 
   function showReply(t){ const el=$("#powerline").querySelector(".t");
     el.innerHTML=t.replace(/</g,"&lt;"); el.style.color="var(--white)";
@@ -979,10 +991,17 @@ class CoreOrb{
   const WAKE="jarvis";
   function setWakeUI(on){ $("#wake").classList.toggle("on",on);
     $("#wakeState").textContent=on?"LISTENING — SAY “JARVIS …”":"CLICK WAKE, THEN SAY “JARVIS”"; animWaves(on); }
+  let _lastHint=0;
   function handleWakeFinal(txt){
-    txt=(txt||"").toLowerCase().trim(); if(!txt) return; $("#cmd").value=txt;
+    txt=(txt||"").toLowerCase().trim(); if(!txt) return;
+    if(isSpeaking()) return;                                   // ignore JARVIS's own voice
+    $("#cmd").value=txt;
     if(awaiting){ clearTimeout(awaitT); awaiting=false; runCommand(txt); return; }
-    const i=txt.indexOf(WAKE); if(i<0) return;                 // only act after the wake word
+    const i=txt.indexOf(WAKE);
+    if(i<0){                                                   // no wake word — say so instead of silently ignoring
+      if(txt.split(/\s+/).length>=3 && Date.now()-_lastHint>30000){ _lastHint=Date.now();
+        showReply("I heard you, sir — start with “Jarvis …”, or ask again within a few seconds of my reply."); }
+      return; }
     const cmd=txt.slice(i+WAKE.length).replace(/^[\s,.:;!?]+/,"").trim();
     if(cmd){ runCommand(cmd); }
     else { awaiting=true; if(CORE)CORE.setState("listening"); showReply("Yes, sir?");
@@ -1016,6 +1035,7 @@ class CoreOrb{
   let _fsDone=false;
   addEventListener("pointerdown",()=>{ if(!_fsDone && !document.fullscreenElement){ _fsDone=true; goFull(); } },{capture:true});
   $("#cmd").addEventListener("keydown",e=>{ if(e.key==="Enter"){ runCommand(e.target.value.trim()); e.target.value=""; }});
+  $("#ask").addEventListener("click",()=>{ const v=$("#cmd").value.trim(); if(v){ runCommand(v); $("#cmd").value=""; } });
   $$("[data-url]").forEach(el=>el.addEventListener("click",()=>{ const u=el.dataset.url; if(u&&u!=="#") open(u,"_blank","noopener"); }));
   $$("[data-power]").forEach(el=>el.addEventListener("click",()=>{ const a=el.dataset.power;
     showReply("Command received: "+a.toUpperCase()+". (disabled from HUD)"); speak(a+" is disabled from the interface, sir."); }));
