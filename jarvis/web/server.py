@@ -109,6 +109,35 @@ def create_app():
     def stats():
         return jsonify(_stats())
 
+    @app.route("/api/voicetest")
+    def voicetest():
+        """Ground truth for 'why doesn't he sound right': asks ElevenLabs
+        which voices this account can use and whether the configured
+        voice id is among them."""
+        import json as _json
+        import urllib.request as _rq
+        from jarvis.web.dispatch import _env_ascii, _ssl_context
+
+        key = _env_ascii("ELEVENLABS_API_KEY")
+        conf = os.environ.get("ELEVENLABS_VOICE_ID", "(not set — using stock Daniel)")
+        if not key:
+            return jsonify({"ok": False, "error": "no ELEVENLABS_API_KEY configured"})
+        try:
+            req = _rq.Request("https://api.elevenlabs.io/v1/voices",
+                              headers={"xi-api-key": key})
+            with _rq.urlopen(req, timeout=15, context=_ssl_context()) as r:
+                voices = _json.loads(r.read()).get("voices", [])
+        except Exception as exc:
+            return jsonify({"ok": False, "error": str(exc)[:300]})
+        mine = {v["voice_id"]: v.get("name", "?") for v in voices}
+        return jsonify({
+            "ok": True,
+            "configured_voice_id": conf,
+            "configured_voice_is_usable": conf in mine,
+            "configured_voice_name": mine.get(conf),
+            "voices_in_your_account": [{"id": k, "name": n} for k, n in mine.items()],
+        })
+
     @app.route("/api/braintest")
     def braintest():
         """Live check of the reasoning brain so the HUD can report a broken

@@ -1140,7 +1140,8 @@ class CoreOrb{
   function startListen(){ if(wakeMode)return; if(!SR){ $("#cmd").focus(); return; }
     if(listening)return; rec=new SR(); rec.lang="en-US"; rec.interimResults=true; rec.continuous=false;
     listening=true; $("#mic").classList.add("live"); animWaves(true); if(CORE)CORE.setState("listening");
-    rec.onresult=e=>{ const txt=Array.from(e.results).map(r=>r[0].transcript).join(""); flashCmd(txt);
+    rec.onresult=e=>{ if(isSpeaking()) return;   // never transcribe his own voice
+      const txt=Array.from(e.results).map(r=>r[0].transcript).join(""); flashCmd(txt);
       if(e.results[e.results.length-1].isFinal){ runCommand(txt.trim()); } };
     rec.onend=()=>{ listening=false; $("#mic").classList.remove("live"); animWaves(false); if(CORE&&CORE.state==="listening")CORE.setState("idle"); };
     rec.onerror=()=>{ listening=false; $("#mic").classList.remove("live"); animWaves(false); if(CORE&&CORE.state==="listening")CORE.setState("idle"); };
@@ -1185,7 +1186,8 @@ class CoreOrb{
     wakeMode=true; setWakeUI();
     wakeRec=new SR(); wakeRec.lang="en-US"; wakeRec.continuous=true; wakeRec.interimResults=true;
     wakeRec.onresult=e=>{ for(let k=e.resultIndex;k<e.results.length;k++){ const res=e.results[k];
-        if(res.isFinal) handleWakeFinal(res[0].transcript); else flashCmd(res[0].transcript); } };
+        if(res.isFinal) handleWakeFinal(res[0].transcript);
+        else if(!isSpeaking()) flashCmd(res[0].transcript); } };   // no ghost-typing of his own speech
     wakeRec.onend=()=>{ if(wakeMode){ setTimeout(()=>{ try{wakeRec.start();}catch(e){} },250); } };   // keep it alive
     wakeRec.onerror=ev=>{ if(ev.error==="not-allowed"||ev.error==="service-not-allowed"){ stopWake();
         alert("Microphone is blocked. Allow it for this page (and in System Settings → Privacy → Microphone → Chrome), then click WAKE again."); }
