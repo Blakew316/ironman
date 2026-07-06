@@ -345,7 +345,7 @@ body{color:var(--white);letter-spacing:.06em}
   </div>
 
   <!-- weather + globe -->
-  <div id="weather"><div class="t" id="temp">28°C</div><div class="dim" id="city">SURAT</div></div>
+  <div id="weather" style="display:none"><div class="t" id="temp"></div><div class="dim" id="city"></div></div>
   <svg id="globe" viewBox="0 0 220 200">
     <g transform="translate(70 90)">
       <circle r="52" fill="none" stroke="var(--stroke)" stroke-width="1"/>
@@ -361,7 +361,7 @@ body{color:var(--white);letter-spacing:.06em}
     </g>
     <path class="dash" d="M118 70 Q160 40 195 74" fill="none" stroke="var(--cyan)" stroke-width="1.5"/>
     <circle cx="195" cy="74" r="3" fill="var(--amber)"/>
-    <text x="120" y="118" fill="var(--dim)" font-size="10" font-family="var(--mono)">116.73.198.72</text>
+    <text x="120" y="118" fill="var(--dim)" font-size="10" font-family="var(--mono)">LINK SECURE</text>
   </svg>
 
   <!-- suit silhouettes (original stylized) -->
@@ -768,7 +768,7 @@ class CoreOrb{
     "> loading neural interface ......... OK",
     "> calibrating sensors [cpu|ram|net] OK",
     "> speech subsystem ......... ONLINE",
-    "> establishing uplink 116.73.198.72",
+    "> establishing secure uplink ......... OK",
     "> J.A.R.V.I.S is at your service, sir."
   ];
   let bi=0; const blog=$("#bootlog");
@@ -852,14 +852,19 @@ class CoreOrb{
       $("#diskRows").innerHTML=s.disk.map(x=>`<div class="row"><div class="top"><span>${(x.name||x.mount).slice(0,10)}</span>
         <span class="mono">${x.used_gb}/${x.total_gb} GB</span></div><div class="meter"><i style="width:${x.percent}%"></i></div></div>`).join("");
       $("#fsRows").innerHTML=s.disk.map(x=>`<div class="row"><span class="dim">${(x.mount||'').slice(0,14)}</span><span class="mono">${x.total_gb} GB</span></div>`).join(""); }
-    if(s.net_total_gb) $("#netTotal").textContent=s.net_total_gb+" GB";
+    if(s.net_down!=null&&s.net_down>0) $("#netTotal").textContent=(s.net_down/1e9).toFixed(1)+" GB";
+    else if(s.net_total_gb) $("#netTotal").textContent=s.net_total_gb+" GB";
   }
 
   /* ---------- backend link (live or demo) ---------- */
-  let LIVE=false;
+  // A single dropped poll must NOT flip the HUD into demo mode (heavy voice
+  // synthesis can briefly starve the server). Only declare the link down after
+  // several consecutive failures, and once live data has been seen never
+  // overwrite it with fake demo numbers.
+  let LIVE=false, EVER_LIVE=false, _pollFails=0;
   async function poll(){ try{ const r=await fetch("/api/stats",{cache:"no-store"});
-      if(!r.ok) throw 0; const s=await r.json(); LIVE=true; setLink(true); render(s);
-    }catch(e){ LIVE=false; setLink(false); render(demo()); } }
+      if(!r.ok) throw 0; const s=await r.json(); _pollFails=0; LIVE=true; EVER_LIVE=true; setLink(true); render(s);
+    }catch(e){ if(++_pollFails>=4){ LIVE=false; setLink(false); if(!EVER_LIVE) render(demo()); } } }
   function setLink(ok){ $("#linkState").textContent=ok?"JARVIS ONLINE":"DEMO MODE";
     $("#linkState").style.color=ok?"var(--cyan)":"var(--amber)"; $("#idsub").textContent=ok?"… ONLINE …":"… DEMO …"; }
 
@@ -911,7 +916,7 @@ class CoreOrb{
   // current plays) so it starts talking almost immediately and flows naturally.
   async function speak(t){
     if(!t) return;
-    if(TTS_ON && LIVE){
+    if(TTS_ON && (LIVE||EVER_LIVE)){
       const parts=(String(t).match(/[^.!?]+[.!?]*/g)||[t]).map(s=>s.trim()).filter(Boolean);
       const id=++_sayId; try{ speechSynthesis.cancel(); }catch(e){}
       if(CORE)CORE.setState("talking");
@@ -931,8 +936,10 @@ class CoreOrb{
   }
 
   async function runCommand(text){ if(!text)return; showReply("· "+text+" ·","dim"); if(CORE)CORE.setState("thinking");
-    if(LIVE){ try{ const r=await fetch("/api/command",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text})});
-        const j=await r.json(); showReply(j.reply); speak(j.reply); return; }catch(e){} }
+    if(LIVE||EVER_LIVE){ for(let a=0;a<2;a++){ // one retry — a busy server isn't a dead server
+      try{ const r=await fetch("/api/command",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text})});
+        const j=await r.json(); showReply(j.reply); speak(j.reply); return; }
+      catch(e){ await new Promise(res=>setTimeout(res,700)); } } }
     const j=localAnswer(text); showReply(j); speak(j); }
 
   function showReply(t){ const el=$("#powerline").querySelector(".t");
@@ -1020,8 +1027,10 @@ class CoreOrb{
   /* ---------- start ---------- */
   drawCal(); tick(); render(demo());
   setInterval(tick,1000); poll(); setInterval(poll,1500);
-  // detect a configured premium voice backend
-  fetch("/api/health").then(r=>r.json()).then(j=>{ TTS_ON=!!j.tts; }).catch(()=>{});
+  // detect a configured premium voice backend; keep checking so a server that
+  // starts a moment after the page loads still gets the good voice
+  function checkTTS(){ fetch("/api/health").then(r=>r.json()).then(j=>{ TTS_ON=!!j.tts; }).catch(()=>{}); }
+  checkTTS(); setInterval(checkTTS,10000);
 })();
 </script>
 </body>

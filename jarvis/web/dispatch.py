@@ -166,10 +166,14 @@ def handle(text):
         return {"reply": tell_joke.startJoke(), "intent": "joke"}
 
     # --- weather ---
+    # Only use the built-in OpenWeatherMap skill when it can actually work;
+    # otherwise let the reasoning brain (with live web search) answer instead
+    # of parroting "no API key configured".
     if has("weather", "forecast", "umbrella", "temperature", "how hot", "how cold", "is it raining", "how s the sky"):
-        m = re.search(r"(?:weather|forecast|temperature)\s+(?:in|for|at)\s+(.+)", cmd)
-        city = m.group(1).strip() if m else config.CITY
-        return {"reply": get_weather.weather(city), "intent": "weather"}
+        if os.environ.get("OWM_API_KEY") or chat_provider() is None:
+            m = re.search(r"(?:weather|forecast|temperature)\s+(?:in|for|at)\s+(.+)", cmd)
+            city = m.group(1).strip() if m else config.CITY
+            return {"reply": get_weather.weather(city), "intent": "weather"}
 
     # --- power (gated) ---
     if has("shut down", "shutdown", "power off", "turn off the computer"):
@@ -188,7 +192,11 @@ def handle(text):
         return {"reply": check_hardware.getcpuper(False), "intent": "cpu"}
 
     # --- explicit wikipedia lookups ---
-    for trigger in ("search wikipedia for", "wikipedia", "look up", "search for", "tell me about"):
+    # With a reasoning brain configured, only an explicit "wikipedia" request
+    # goes to the encyclopedia; everything else deserves the smarter answer.
+    _wiki_triggers = ("search wikipedia for", "wikipedia") if chat_provider() else \
+        ("search wikipedia for", "wikipedia", "look up", "search for", "tell me about")
+    for trigger in _wiki_triggers:
         if cmd.startswith(trigger):
             topic = cmd[len(trigger):].strip()
             if topic:

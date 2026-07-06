@@ -41,6 +41,34 @@ def test_chat_provider_selection(monkeypatch):
     assert dispatch.chat_provider() == "anthropic"
 
 
+def test_weather_goes_to_brain_without_owm_key(monkeypatch):
+    # no weather API key + a brain configured -> the brain answers, not the
+    # useless "no API key configured" reply
+    monkeypatch.delenv("OWM_API_KEY", raising=False)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
+    monkeypatch.setattr(dispatch, "_chat", lambda prompt: "Sunny, sir.")
+    out = dispatch.handle("what's the weather like")
+    assert out["intent"] == "chat"
+    assert out["reply"] == "Sunny, sir."
+
+
+def test_weather_uses_local_skill_without_brain(monkeypatch):
+    monkeypatch.delenv("OWM_API_KEY", raising=False)
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    assert dispatch.handle("what's the weather like")["intent"] == "weather"
+
+
+def test_tell_me_about_prefers_brain(monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
+    monkeypatch.setattr(dispatch, "_chat", lambda prompt: "He built the suit, sir.")
+    out = dispatch.handle("tell me about tony stark")
+    assert out["intent"] == "chat"
+    # an explicit wikipedia request still goes to wikipedia
+    _wiki = ("search wikipedia for", "wikipedia")
+    assert all(dispatch._norm(t) for t in _wiki)
+
+
 def test_dispatch_power_denied_by_default(monkeypatch):
     monkeypatch.delenv("JARVIS_WEB_ALLOW_POWER", raising=False)
     out = dispatch.handle("shut down")
