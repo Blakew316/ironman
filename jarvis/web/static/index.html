@@ -704,7 +704,7 @@ body{color:var(--white);letter-spacing:.06em}
   <div id="wake" title="Hands-free: listen for the wake word">WAKE</div>
   <div id="mic" title="Click and speak one command"><svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V21h2v-3.1A7 7 0 0 0 19 11z"/></svg></div>
 </div>
-<div id="status">LINK: <b id="linkState">…</b> · <b id="wakeState">CLICK WAKE, THEN SAY “JARVIS”</b> · <b id="voiceState">VOICE: …</b> · <b id="buildTag">B25</b></div>
+<div id="status">LINK: <b id="linkState">…</b> · <b id="wakeState">CLICK WAKE, THEN SAY “JARVIS”</b> · <b id="voiceState">VOICE: …</b> · <b id="buildTag">B26</b></div>
 <div id="vignette"></div>
 <div class="hudc" id="hc-tl"></div><div class="hudc" id="hc-tr"></div>
 <div class="hudc" id="hc-bl"></div><div class="hudc" id="hc-br"></div>
@@ -737,7 +737,7 @@ class CoreOrb{
     this._bump=bump;
     // cluster centers: the film hologram is PATCHY — dense knots of matter
     // joined by fibers, not an even dusting
-    this.clusters=[]; const K=14;
+    this.clusters=[]; const K=20;
     for(let k=0;k<K;k++) this.clusters.push({th:Math.acos(2*Math.random()-1),ph:Math.random()*6.2831853});
     const gauss=()=> (Math.random()+Math.random()+Math.random()-1.5)*0.8;
     const nearCluster=(spread)=>{ const c=this.clusters[(Math.random()*K)|0];
@@ -755,7 +755,7 @@ class CoreOrb{
     // filament web: fiber chains hugging the clusters, plus radial veins
     // branching out from the core — the film's glowing network
     this.chains=[];
-    const CH=this.reduced?44:150, VN=this.reduced?10:34;
+    const CH=this.reduced?50:190, VN=this.reduced?12:40;
     for(let c=0;c<CH;c++){
       let s=Math.random()<0.7?nearCluster(0.22)
             :{th:Math.acos(2*Math.random()-1),ph:Math.random()*6.2831853};
@@ -866,18 +866,21 @@ class CoreOrb{
         if(first){ path.moveTo(lastX,lastY); first=false; } else path.lineTo(lastX,lastY);
       }
       const depth=(zsum/ch.pts.length+1)*0.5;              // 0 back … 1 front
-      const a=(0.10+0.42*depth)*br*flick;
+      let a=(0.10+0.42*depth)*br*flick;
+      // veins run hotter — and SURGE while he's thinking and talking
+      const surge=ch.vein?(1.3+this.amp*1.3+(this.state==="thinking"?0.5:0)):1;
+      a*=surge;
       // soft halo
-      x.lineWidth=2.6*DPR;
-      x.strokeStyle="rgba(70,170,255,"+(a*0.35).toFixed(3)+")";
+      x.lineWidth=(ch.vein?3.2:2.6)*DPR;
+      x.strokeStyle="rgba("+(ch.vein?"50,185,255":"70,170,255")+","+Math.min(0.6,a*0.35).toFixed(3)+")";
       x.stroke(path);
       // bright filament core
-      x.lineWidth=(ch.vein?1.35:0.95)*DPR;
-      x.strokeStyle="rgba(175,232,255,"+Math.min(0.85,a*1.25).toFixed(3)+")";
+      x.lineWidth=(ch.vein?1.5:0.95)*DPR;
+      x.strokeStyle="rgba("+(ch.vein?"195,242,255":"175,232,255")+","+Math.min(0.95,a*1.25).toFixed(3)+")";
       x.stroke(path);
       // hot tip on the veins (where they meet the shell)
-      if(ch.vein){ x.fillStyle="rgba(235,250,255,"+Math.min(0.9,a*1.7).toFixed(3)+")";
-        x.beginPath(); x.arc(lastX,lastY,1.9*DPR,0,7); x.fill(); }
+      if(ch.vein){ x.fillStyle="rgba(240,252,255,"+Math.min(0.95,a*1.6).toFixed(3)+")";
+        x.beginPath(); x.arc(lastX,lastY,(1.9+this.amp*1.6)*DPR,0,7); x.fill(); }
     }
 
     // listening ripple (blue)
