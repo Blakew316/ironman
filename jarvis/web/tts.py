@@ -165,7 +165,7 @@ def _elevenlabs(text, prev=""):
             except ValueError:
                 pass
     if settings:
-        settings["use_speaker_boost"] = True
+        settings["use_speaker_boost"] = os.environ.get("ELEVENLABS_SPEAKER_BOOST") == "1"
     payload = {"text": text, "model_id": model}
     if prev:
         # prosody continuity: when a long reply is split, each piece knows
