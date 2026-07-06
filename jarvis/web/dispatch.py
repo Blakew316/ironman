@@ -95,7 +95,8 @@ def _chat(prompt):
             attempts = []
             if os.environ.get("JARVIS_WEB_SEARCH", "1") != "0":
                 with_tool = dict(base)
-                with_tool["tools"] = [{"type": "web_search_20250305", "name": "web_search", "max_uses": 5}]
+                # max_uses kept low so a chained search can't stall the reply
+                with_tool["tools"] = [{"type": "web_search_20250305", "name": "web_search", "max_uses": 2}]
                 attempts.append(with_tool)
             attempts.append(base)
             for payload in attempts:

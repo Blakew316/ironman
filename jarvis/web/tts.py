@@ -15,6 +15,7 @@ None configured => disabled, and the HUD falls back to the browser voice.
 
 import json
 import os
+import threading
 import urllib.request
 
 # ElevenLabs "Daniel" — a stock British male preset (calm, news-presenter tone).
@@ -22,6 +23,8 @@ import urllib.request
 _DEFAULT_ELEVEN_VOICE = "onwK4e9ZLuTAKqWW03F9"
 
 _xtts_engine = None
+_xtts_lock = threading.Lock()  # the model is not thread-safe; requests queue
+_xtts_on_cpu = False  # set when a GPU backend failed and we recovered on CPU
 
 
 def provider():
@@ -41,39 +44,66 @@ def _xtts(text):
     Returns WAV bytes. The model is loaded once (slow the first time). Intended
     for a voice you are entitled to use — typically your own recordings.
     """
-    global _xtts_engine
+    global _xtts_engine, _xtts_on_cpu
     # Accept the model's non-commercial license non-interactively (personal use).
     os.environ.setdefault("COQUI_TOS_AGREED", "1")
     speaker = os.environ["XTTS_SPEAKER_WAV"]
     language = os.environ.get("XTTS_LANGUAGE", "en")
     speakers = [s.strip() for s in speaker.split(",") if s.strip()]
+    device = (os.environ.get("XTTS_DEVICE") or "").strip()
 
-    if _xtts_engine is None:
-        from TTS.api import TTS  # heavy; imported lazily
-        model = os.environ.get("XTTS_MODEL", "tts_models/multilingual/multi-dataset/xtts_v2")
-        print("[tts] loading XTTS model (first run downloads it; first line is slow)…")
-        _xtts_engine = TTS(model)
-        device = os.environ.get("XTTS_DEVICE")
-        if device:
-            _xtts_engine = _xtts_engine.to(device)
+    with _xtts_lock:
+        if _xtts_engine is None:
+            if device == "mps":
+                # Apple GPU: route the few unsupported ops to CPU instead of
+                # crashing mid-sentence. Must be set before torch is imported.
+                os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
+            from TTS.api import TTS  # heavy; imported lazily
+            model = os.environ.get("XTTS_MODEL", "tts_models/multilingual/multi-dataset/xtts_v2")
+            print("[tts] loading XTTS model (first run downloads it; first line is slow)…")
+            _xtts_engine = TTS(model)
+            if device and not _xtts_on_cpu:
+                _xtts_engine = _xtts_engine.to(device)
 
-    import tempfile
-    fd, path = tempfile.mkstemp(suffix=".wav")
-    os.close(fd)
-    try:
-        _xtts_engine.tts_to_file(
-            text=text,
-            speaker_wav=speakers if len(speakers) > 1 else speakers[0],
-            language=language,
-            file_path=path,
-        )
-        with open(path, "rb") as f:
-            return f.read()
-    finally:
+        import tempfile
+        fd, path = tempfile.mkstemp(suffix=".wav")
+        os.close(fd)
+        kwargs = {
+            "text": text,
+            "speaker_wav": speakers if len(speakers) > 1 else speakers[0],
+            "language": language,
+            "file_path": path,
+        }
+        # Optional speaking-pace tweak, e.g. XTTS_SPEED=1.15 for a brisker read.
+        speed = os.environ.get("XTTS_SPEED")
+        if speed:
+            try:
+                kwargs["speed"] = float(speed)
+            except ValueError:
+                pass
         try:
-            os.remove(path)
-        except OSError:
-            pass
+            try:
+                _xtts_engine.tts_to_file(**kwargs)
+            except TypeError:
+                kwargs.pop("speed", None)  # engine without speed support
+                _xtts_engine.tts_to_file(**kwargs)
+            except Exception as exc:
+                if device and device != "cpu" and not _xtts_on_cpu:
+                    # GPU backend hiccuped — finish this line on CPU and stay
+                    # there so the voice never silently drops out.
+                    print("[tts] %s backend failed (%s); recovering on CPU" % (device, exc))
+                    _xtts_engine = _xtts_engine.to("cpu")
+                    _xtts_on_cpu = True
+                    _xtts_engine.tts_to_file(**kwargs)
+                else:
+                    raise
+            with open(path, "rb") as f:
+                return f.read()
+        finally:
+            try:
+                os.remove(path)
+            except OSError:
+                pass
 
 
 def _post(url, headers, payload, timeout=30):
