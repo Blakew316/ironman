@@ -46,6 +46,18 @@ body{color:var(--white);letter-spacing:.06em}
 .panel h4{position:relative;padding-left:11px}
 .panel h4::before{content:"";position:absolute;left:0;top:1px;bottom:1px;width:3px;
   background:linear-gradient(180deg,var(--cyan),rgba(255,150,40,.55));box-shadow:0 0 8px rgba(42,212,255,.7)}
+/* small live data panels (waveforms, radar, hex streams) — pure decoration
+   in the reference-image style; they render fake telemetry */
+.dpanel{position:absolute;border:1px solid var(--stroke-soft);padding:5px 7px 6px;
+  background:linear-gradient(180deg,rgba(8,20,28,.62),rgba(4,10,14,.34));
+  box-shadow:inset 0 0 18px rgba(42,212,255,.07);
+  clip-path:polygon(0 0,calc(100% - 10px) 0,100% 10px,100% 100%,8px 100%,0 calc(100% - 8px))}
+.dpanel .dlbl{font-size:9px;letter-spacing:.22em;color:var(--dim);margin-bottom:3px;
+  border-bottom:1px solid rgba(42,212,255,.14);padding-bottom:2px}
+.dpanel canvas{display:block;width:100%}
+.dhex{font-family:var(--mono);font-size:9px;line-height:1.4;color:rgba(120,200,255,.5);
+  white-space:pre;overflow:hidden}
+
 /* deep-space vignette + arc-light aura, layered over everything */
 #vignette{position:fixed;inset:0;pointer-events:none;z-index:60;
   background:
@@ -476,7 +488,6 @@ body{color:var(--white);letter-spacing:.06em}
 
   <svg id="gear" class="arcR" viewBox="-100 -100 200 200"><use href="#arcReactor"/></svg>
 
-  <svg id="hex" viewBox="0 0 220 150"></svg>
 
   <!-- center system -->
   <div class="panel" id="system">
@@ -693,7 +704,7 @@ body{color:var(--white);letter-spacing:.06em}
   <div id="wake" title="Hands-free: listen for the wake word">WAKE</div>
   <div id="mic" title="Click and speak one command"><svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V21h2v-3.1A7 7 0 0 0 19 11z"/></svg></div>
 </div>
-<div id="status">LINK: <b id="linkState">…</b> · <b id="wakeState">CLICK WAKE, THEN SAY “JARVIS”</b> · <b id="voiceState">VOICE: …</b> · <b id="buildTag">B21</b></div>
+<div id="status">LINK: <b id="linkState">…</b> · <b id="wakeState">CLICK WAKE, THEN SAY “JARVIS”</b> · <b id="voiceState">VOICE: …</b> · <b id="buildTag">B22</b></div>
 <div id="vignette"></div>
 <div class="hudc" id="hc-tl"></div><div class="hudc" id="hc-tr"></div>
 <div class="hudc" id="hc-bl"></div><div class="hudc" id="hc-br"></div>
@@ -853,6 +864,41 @@ class CoreOrb{
     const a3=this.angle*0.32+2.4;
     x.beginPath(); x.arc(cx,cy,rr2+12*DPR,a3,a3+0.28); x.stroke();
 
+    // ---- outer machined ring assembly (the big studded dial) ----
+    const rr3=R*1.33, segs=12, segGap=0.10, segLen=Math.PI*2/segs;
+    // engraved twin rings the segments sit between
+    x.lineWidth=1;
+    x.strokeStyle="rgba(90,180,255,"+(0.14*br)+")";
+    x.beginPath(); x.arc(cx,cy,rr3-9*DPR,0,7); x.stroke();
+    x.beginPath(); x.arc(cx,cy,rr3+9*DPR,0,7); x.stroke();
+    // thick segmented band, slowly counter-rotating
+    const segA=-this.angle*0.06;
+    x.lineWidth=6.5*DPR;
+    x.strokeStyle="rgba(50,140,220,"+(0.22*br)+")";
+    for(let k=0;k<segs;k++){ const s0=segA+k*segLen+segGap/2;
+      x.beginPath(); x.arc(cx,cy,rr3,s0,s0+segLen-segGap); x.stroke(); }
+    // studs at every segment junction (bright rivet + dark core)
+    for(let k=0;k<segs;k++){ const a=segA+k*segLen;
+      const sx=cx+Math.cos(a)*rr3, sy=cy+Math.sin(a)*rr3;
+      x.fillStyle="rgba(140,215,255,"+(0.55*br)+")";
+      x.beginPath(); x.arc(sx,sy,3.4*DPR,0,7); x.fill();
+      x.fillStyle="rgba(6,16,26,0.9)";
+      x.beginPath(); x.arc(sx,sy,1.4*DPR,0,7); x.fill(); }
+    // rotating dashed halo just outside the band
+    x.lineWidth=1.4*DPR;
+    x.strokeStyle="rgba(100,195,255,"+(0.20*br)+")";
+    x.setLineDash([4*DPR,9*DPR]); x.lineDashOffset=-this.t*22*DPR;
+    x.beginPath(); x.arc(cx,cy,rr3+16*DPR,0,7); x.stroke();
+    x.setLineDash([]);
+    // compass ticks at the cardinal points
+    x.lineWidth=2*DPR;
+    x.strokeStyle="rgba(150,225,255,"+(0.35*br)+")";
+    x.beginPath();
+    for(let k=0;k<4;k++){ const a=k*Math.PI/2;
+      x.moveTo(cx+Math.cos(a)*(rr3+20*DPR),cy+Math.sin(a)*(rr3+20*DPR));
+      x.lineTo(cx+Math.cos(a)*(rr3+30*DPR),cy+Math.sin(a)*(rr3+30*DPR)); }
+    x.stroke();
+
     requestAnimationFrame(this._loop);
   }
 }
@@ -890,6 +936,85 @@ class CoreOrb{
   }
   addEventListener("resize",fit); fit();
 
+  /* ---------- decorative live telemetry panels (reference-image style) ---------- */
+  (function(){
+    if(matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const stage=$("#stage");
+    const DEFS=[
+      {x:"16px",            y:198, w:150, h:80,  t:"eq",    l:"NET TRAFFIC"},
+      {x:"16px",            y:290, w:150, h:102, t:"hex",   l:"DATA STREAM"},
+      {x:"16px",            y:404, w:150, h:118, t:"radar", l:"SENSOR ARRAY"},
+      {r:"16px",            y:626, w:150, h:74,  t:"histo", l:"PWR FLOW"},
+      {c:-300,              y:92,  w:214, h:58,  t:"eq",    l:"UPLINK SPECTRUM"},
+      {c:96,                y:92,  w:214, h:58,  t:"scope", l:"FREQ ANALYSIS"},
+    ];
+    const HEXCH="0123456789ABCDEF";
+    const rnd=n=>Math.floor(Math.random()*n);
+    const hexLine=()=>{ let out=[]; for(let g=0;g<3;g++){ let s="";
+        for(let c=0;c<4;c++) s+=HEXCH[rnd(16)]; out.push(s); }
+      return "0x"+out.join(" ")+"  "+(Math.random()<0.2?"▌OK":""); };
+    const panels=[];
+    for(const d of DEFS){
+      const el=document.createElement("div"); el.className="dpanel";
+      el.style.width=d.w+"px"; el.style.top=d.y+"px";
+      if(d.x) el.style.left=d.x;
+      else if(d.r) el.style.right=d.r;
+      else { el.style.left="50%"; el.style.marginLeft=d.c+"px"; }
+      el.innerHTML='<div class="dlbl">'+d.l+'</div>';
+      let cv=null,hx=null;
+      if(d.t==="hex"){ hx=document.createElement("div"); hx.className="dhex";
+        hx.style.height=(d.h-18)+"px"; el.appendChild(hx);
+        hx._lines=Array.from({length:8},hexLine); }
+      else { cv=document.createElement("canvas"); cv.width=d.w-14; cv.height=d.h-20;
+        el.appendChild(cv); }
+      stage.appendChild(el);
+      panels.push({d,cv,hx,st:{bars:Array.from({length:26},()=>Math.random()),
+        hist:Array.from({length:30},()=>Math.random()),ang:Math.random()*6.28,ph:Math.random()*9,
+        blips:Array.from({length:4},()=>({a:Math.random()*6.28,r:Math.random()}))}});
+    }
+    function draw(){
+      for(const p of panels){ const {d,cv,hx,st}=p;
+        if(hx){ if(Math.random()<0.7){ st.i=(st.i||0);
+            hx._lines.unshift(hexLine()); hx._lines.length=8; hx.textContent=hx._lines.join("\n"); }
+          continue; }
+        const x=cv.getContext("2d"), W=cv.width, H=cv.height;
+        x.clearRect(0,0,W,H);
+        if(d.t==="eq"){ const n=st.bars.length, bw=W/n;
+          for(let i=0;i<n;i++){ st.bars[i]=Math.max(0.05,Math.min(1,st.bars[i]+(Math.random()-0.5)*0.25));
+            const h=st.bars[i]*(H-3);
+            x.fillStyle="rgba(70,175,255,0.75)"; x.fillRect(i*bw+1,H-h,bw-2,h);
+            x.fillStyle="rgba(160,230,255,0.9)"; x.fillRect(i*bw+1,H-h,bw-2,1.5); } }
+        else if(d.t==="histo"){ st.hist.push(Math.random()); st.hist.shift();
+          const n=st.hist.length, bw=W/n;
+          for(let i=0;i<n;i++){ const h=st.hist[i]*(H-3);
+            x.fillStyle="rgba(70,175,255,"+(0.25+0.5*i/n)+")"; x.fillRect(i*bw+0.5,H-h,bw-1,h); } }
+        else if(d.t==="scope"){ st.ph+=0.35;
+          x.strokeStyle="rgba(110,205,255,0.8)"; x.lineWidth=1.4; x.beginPath();
+          for(let i=0;i<=W;i+=2){ const v=Math.sin(i*0.07+st.ph)*0.5+Math.sin(i*0.023+st.ph*1.7)*0.3
+              +(Math.random()-0.5)*0.18;
+            const y=H/2+v*H*0.38; i?x.lineTo(i,y):x.moveTo(i,y); }
+          x.stroke();
+          x.strokeStyle="rgba(42,212,255,0.15)"; x.lineWidth=1;
+          x.beginPath(); x.moveTo(0,H/2); x.lineTo(W,H/2); x.stroke(); }
+        else if(d.t==="radar"){ const cxr=W/2, cyr=H/2, R0=Math.min(W,H)/2-2;
+          st.ang+=0.09;
+          x.strokeStyle="rgba(42,212,255,0.25)"; x.lineWidth=1;
+          for(let r=R0/3;r<=R0;r+=R0/3){ x.beginPath(); x.arc(cxr,cyr,r,0,7); x.stroke(); }
+          x.beginPath(); x.moveTo(cxr-R0,cyr); x.lineTo(cxr+R0,cyr);
+          x.moveTo(cxr,cyr-R0); x.lineTo(cxr,cyr+R0); x.stroke();
+          const g=x.createConicGradient?x.createConicGradient(st.ang,cxr,cyr):null;
+          if(g){ g.addColorStop(0,"rgba(80,190,255,0.5)"); g.addColorStop(0.12,"rgba(80,190,255,0)");
+            g.addColorStop(1,"rgba(80,190,255,0)");
+            x.fillStyle=g; x.beginPath(); x.moveTo(cxr,cyr); x.arc(cxr,cyr,R0,0,7); x.fill(); }
+          for(const b of st.blips){ if(Math.random()<0.01){ b.a=Math.random()*6.28; b.r=Math.random(); }
+            const d2=(st.ang-b.a)%6.283, glow=Math.max(0,1-Math.abs(d2)*1.2);
+            x.fillStyle="rgba(170,235,255,"+(0.25+0.65*glow)+")";
+            x.beginPath(); x.arc(cxr+Math.cos(b.a)*b.r*R0*0.9,cyr+Math.sin(b.a)*b.r*R0*0.9,1.8,0,7); x.fill(); } }
+      }
+    }
+    setInterval(draw,110);
+  })();
+
   /* ---------- the animated energy core (main centerpiece) ---------- */
   const CORE = (function(){ const el=$("#core"); return el ? new CoreOrb(el) : null; })();
   window.jarvisCore = CORE;  // exposed so the state can be driven/tested externally
@@ -911,12 +1036,7 @@ class CoreOrb{
   })();
 
   /* ---------- hex grid ---------- */
-  (function(){ const svg=$("#hex"); let h="";
-    for(let r=0;r<3;r++)for(let c=0;c<5;c++){ const x=20+c*40+(r%2?20:0), y=20+r*44;
-      const on=Math.random()>.55;
-      h+=`<polygon points="${x},${y-16} ${x+16},${y-8} ${x+16},${y+8} ${x},${y+16} ${x-16},${y+8} ${x-16},${y-8}"
-        fill="${on?'rgba(42,212,255,.18)':'none'}" stroke="var(--stroke-soft)" stroke-width="1"/>`; }
-    svg.innerHTML=h; })();
+  // (hexagon doodle removed — the left column belongs to the telemetry stack)
 
   /* ---------- app tiles + calendar ---------- */
   ["Photoshop","IMG Tool","COLL EDITOR","Tool Kit","Audition","MediaEncoder"].forEach(n=>{
