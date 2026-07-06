@@ -27,6 +27,7 @@ _DEFAULT_ELEVEN_VOICE = "onwK4e9ZLuTAKqWW03F9"
 _xtts_engine = None
 _xtts_lock = threading.Lock()  # the model is not thread-safe; requests queue
 _xtts_on_cpu = False  # set when a GPU backend failed and we recovered on CPU
+last_error = None  # last synthesis failure, for the /api/voicetest readout
 
 
 def provider():
@@ -120,19 +121,30 @@ def _xtts(text):
 
 
 def _post(url, headers, payload, timeout=30):
+    import urllib.error
+
     from jarvis.web.dispatch import _ssl_context
 
     req = urllib.request.Request(url, data=payload, headers=headers, method="POST")
-    with urllib.request.urlopen(req, timeout=timeout, context=_ssl_context()) as resp:
-        return resp.read()
+    try:
+        with urllib.request.urlopen(req, timeout=timeout, context=_ssl_context()) as resp:
+            return resp.read()
+    except urllib.error.HTTPError as exc:
+        # surface the provider's own explanation (quota, voice access, ...)
+        try:
+            detail = exc.read().decode("utf-8", "replace")[:300]
+        except Exception:
+            detail = ""
+        raise RuntimeError("HTTP %s: %s" % (exc.code, detail)) from exc
 
 
 def _elevenlabs(text):
     voice = os.environ.get("ELEVENLABS_VOICE_ID", _DEFAULT_ELEVEN_VOICE)
     model = os.environ.get("ELEVENLABS_MODEL", "eleven_turbo_v2_5")
-    # latency-optimized endpoint: sound starts as fast as the model allows
+    # full-quality output — the aggressive latency mode + low bitrate audibly
+    # flattened rich voices; the HUD's sentence prefetch hides latency instead
     url = ("https://api.elevenlabs.io/v1/text-to-speech/%s"
-           "?optimize_streaming_latency=3&output_format=mp3_44100_64") % voice
+           "?output_format=mp3_44100_128") % voice
     headers = {
         "xi-api-key": os.environ["ELEVENLABS_API_KEY"],
         "Content-Type": "application/json",
@@ -207,6 +219,7 @@ def synthesize(text):
     Repeated lines (greetings, acknowledgements, anything said before) are
     served from a small on-disk cache, so they play instantly and cost no CPU.
     """
+    global last_error
     text = (text or "").strip()
     if not text:
         return None, None
@@ -228,6 +241,7 @@ def synthesize(text):
         else:
             audio = _openai(text)
         if audio:
+            last_error = None
             try:
                 cache.write_bytes(audio)
                 _cache_trim()
@@ -235,5 +249,6 @@ def synthesize(text):
                 pass
             return audio, mime
     except Exception as exc:  # network / auth / quota — fall back to browser voice
+        last_error = "%s: %s" % (p, exc)
         print("[tts] %s synthesis failed: %s" % (p, exc))
     return None, None

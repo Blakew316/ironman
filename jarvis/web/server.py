@@ -130,13 +130,32 @@ def create_app():
         except Exception as exc:
             return jsonify({"ok": False, "error": str(exc)[:300]})
         mine = {v["voice_id"]: v.get("name", "?") for v in voices}
+
+        # live synthesis check: does a real TTS request with this voice work?
+        from jarvis.web import tts as ttsmod
+        audio, _mime = ttsmod.synthesize("Good evening, sir. All systems are operational.")
         return jsonify({
             "ok": True,
             "configured_voice_id": conf,
             "configured_voice_is_usable": conf in mine,
             "configured_voice_name": mine.get(conf),
+            "synthesis_works": bool(audio),
+            "synthesis_error": ttsmod.last_error,
+            "hear_exact_backend_audio_at": "/api/voicetest/audio",
             "voices_in_your_account": [{"id": k, "name": n} for k, n in mine.items()],
         })
+
+    @app.route("/api/voicetest/audio")
+    def voicetest_audio():
+        """Plays the raw audio the backend voice actually produces, with no
+        HUD or fallback layers in between."""
+        from flask import Response
+        from jarvis.web import tts as ttsmod
+
+        audio, mime = ttsmod.synthesize("Good evening, sir. All systems are operational.")
+        if not audio:
+            return ("Synthesis failed: %s" % (ttsmod.last_error or "unknown"), 500)
+        return Response(audio, mimetype=mime)
 
     @app.route("/api/braintest")
     def braintest():
