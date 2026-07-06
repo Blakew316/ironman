@@ -78,6 +78,12 @@ def create_app():
 
     app = Flask(__name__, static_folder=None)
 
+    @app.after_request
+    def _no_cache(resp):
+        # always serve the latest HUD, never a stale cached copy
+        resp.headers["Cache-Control"] = "no-store, max-age=0"
+        return resp
+
     @app.route("/")
     def index():
         return send_from_directory(STATIC_DIR, "index.html")

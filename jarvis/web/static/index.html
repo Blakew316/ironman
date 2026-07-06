@@ -20,12 +20,12 @@ body{color:var(--white);letter-spacing:.06em}
 ::selection{background:var(--cyan);color:#02121a}
 
 /* stage scales a fixed 1920x1080 HUD to fit any viewport */
-#viewport{position:fixed;inset:0;display:grid;place-items:center;
+#viewport{position:fixed;inset:0;overflow:hidden;
   background:
     radial-gradient(1200px 700px at 50% 46%, rgba(20,60,80,.20), transparent 60%),
     radial-gradient(900px 900px at 50% 120%, rgba(255,123,30,.05), transparent 60%),
     #04070b;}
-#stage{position:relative;width:1920px;height:1080px;transform-origin:center center;
+#stage{position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:top left;
   background:
     linear-gradient(var(--grid) 1px,transparent 1px) 0 0/48px 48px,
     linear-gradient(90deg,var(--grid) 1px,transparent 1px) 0 0/48px 48px,
@@ -160,7 +160,7 @@ body{color:var(--white);letter-spacing:.06em}
 #powerline .t b{color:var(--cyan);font-family:var(--mono)}
 
 /* ---------- big reactors ---------- */
-#jarvisCore{left:150px;top:470px;width:340px;height:340px;cursor:pointer}
+#jarvisCore{left:150px;top:430px;width:300px;height:300px;cursor:pointer}
 #jarvisCore .label{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
   font-size:30px;font-weight:700;letter-spacing:.34em;color:var(--white);text-shadow:0 0 18px var(--cyan);pointer-events:none}
 #social{right:120px;bottom:70px;width:320px;height:320px}
@@ -175,7 +175,7 @@ body{color:var(--white);letter-spacing:.06em}
   text-shadow:0 0 22px rgba(42,212,255,.35)}
 #bigclock .t small{font-size:34px;color:var(--cyan)}
 #bigclock .sub{font-size:14px;color:var(--dim);letter-spacing:.2em;margin-top:4px}
-#cal{left:250px;bottom:196px;width:320px;height:52px;border:0;background:none}
+#cal{left:250px;top:748px;width:320px;height:120px;border:0;background:none}
 #cal table{width:100%;border-collapse:collapse;font-size:12px;font-family:var(--mono)}
 #cal td,#cal th{padding:2px 0;text-align:center;color:var(--dim)}
 #cal th{color:var(--cyan);font-weight:400}
@@ -777,8 +777,8 @@ class CoreOrb{
     else{clearInterval(bt); setTimeout(()=>{$("#boot").classList.add("hide");speak("J.A.R.V.I.S online. Welcome back, sir.");},500);} },340);
 
   /* ---------- responsive scaling ---------- */
-  function fit(){ const s=Math.min(innerWidth/1920, innerHeight/1080);
-    $("#stage").style.transform=`scale(${s})`; }
+  function fit(){ // stretch the HUD to fill the whole window edge-to-edge
+    $("#stage").style.transform=`scale(${innerWidth/1920},${innerHeight/1080})`; }
   addEventListener("resize",fit); fit();
 
   /* ---------- the animated energy core (main centerpiece) ---------- */
