@@ -30,7 +30,18 @@ _xtts_on_cpu = False  # set when a GPU backend failed and we recovered on CPU
 
 
 def provider():
-    """Return the active TTS provider name, or ``None`` if not configured."""
+    """Return the active TTS provider name, or ``None`` if not configured.
+
+    ``JARVIS_TTS`` forces a specific provider (xtts / elevenlabs / openai /
+    off) without having to delete the other keys from .env.
+    """
+    forced = os.environ.get("JARVIS_TTS", "").strip().lower()
+    if forced == "off":
+        return None
+    needs = {"xtts": "XTTS_SPEAKER_WAV", "elevenlabs": "ELEVENLABS_API_KEY",
+             "openai": "OPENAI_API_KEY"}
+    if forced in needs and os.environ.get(needs[forced]):
+        return forced
     if os.environ.get("XTTS_SPEAKER_WAV"):
         return "xtts"
     if os.environ.get("ELEVENLABS_API_KEY"):
