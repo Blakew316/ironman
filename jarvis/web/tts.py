@@ -138,10 +138,20 @@ def _elevenlabs(text):
         "Content-Type": "application/json",
         "Accept": "audio/mpeg",
     }
+    def _f(name, default):
+        try:
+            return float(os.environ.get(name, default))
+        except ValueError:
+            return default
     body = json.dumps({
         "text": text,
         "model_id": model,
-        "voice_settings": {"stability": 0.55, "similarity_boost": 0.75, "style": 0.0},
+        # lower stability + some style = livelier, more human intonation;
+        # tune via ELEVENLABS_STABILITY / ELEVENLABS_STYLE in .env
+        "voice_settings": {"stability": _f("ELEVENLABS_STABILITY", 0.40),
+                           "similarity_boost": _f("ELEVENLABS_SIMILARITY", 0.80),
+                           "style": _f("ELEVENLABS_STYLE", 0.35),
+                           "use_speaker_boost": True},
     }).encode("utf-8")
     return _post(url, headers, body)
 
