@@ -13,6 +13,7 @@ import json
 import os
 import random
 import re
+import unicodedata
 import urllib.error
 import urllib.request
 
@@ -67,6 +68,18 @@ def chat_provider():
     return None
 
 
+def _env_ascii(name):
+    """Read an env var as a clean ASCII credential.
+
+    Keys pasted through chat apps / rich-text fields arrive as unicode
+    lookalike characters that HTTP headers reject ('latin-1' codec errors).
+    NFKC-normalize back to plain characters and drop anything non-ASCII.
+    """
+    v = os.environ.get(name, "")
+    v = unicodedata.normalize("NFKC", v).strip()
+    return "".join(ch for ch in v if 0x21 <= ord(ch) <= 0x7E)
+
+
 def _ssl_context():
     """Use certifi's CA bundle when available — macOS Pythons often can't
     verify TLS with the system default, which kills every API call."""
@@ -113,7 +126,7 @@ def _chat(prompt):
     try:
         if provider == "anthropic":
             model = os.environ.get("JARVIS_CHAT_MODEL", "claude-haiku-4-5-20251001")
-            headers = {"x-api-key": os.environ["ANTHROPIC_API_KEY"],
+            headers = {"x-api-key": _env_ascii("ANTHROPIC_API_KEY"),
                        "anthropic-version": "2023-06-01", "content-type": "application/json"}
             base = {"model": model, "max_tokens": 400, "system": _SYSTEM,
                     "messages": [{"role": "user", "content": prompt}]}
@@ -143,7 +156,7 @@ def _chat(prompt):
         model = os.environ.get("JARVIS_CHAT_MODEL", "gpt-4o-mini")
         data = _post_json(
             "https://api.openai.com/v1/chat/completions",
-            {"Authorization": "Bearer %s" % os.environ["OPENAI_API_KEY"],
+            {"Authorization": "Bearer %s" % _env_ascii("OPENAI_API_KEY"),
              "Content-Type": "application/json"},
             {"model": model, "temperature": 0.6, "max_tokens": 220,
              "messages": [{"role": "system", "content": _SYSTEM},
