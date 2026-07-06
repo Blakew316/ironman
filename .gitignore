@@ -32,3 +32,4 @@ voices/
 # OS files
 .DS_Store
 Thumbs.db
+jarvis_memory.json

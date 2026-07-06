@@ -17,6 +17,8 @@ import unicodedata
 import urllib.error
 import urllib.parse
 import urllib.request
+from collections import deque
+from pathlib import Path
 
 from jarvis.nlp import action_phrases as ap
 from jarvis.skills import (
@@ -67,6 +69,28 @@ _SYSTEM = (
     "information (news, prices, weather, live facts), use web search to look it "
     "up before answering, and weave the result into one conversational answer."
 )
+
+
+# ---------------------------------------------------------------------------
+# Memory: short-term conversation history (multi-turn context for the brain)
+# and durable facts persisted to disk ("remember that ...").
+# ---------------------------------------------------------------------------
+_history = deque(maxlen=16)  # last 8 exchanges, alternating user/assistant
+_MEM_PATH = Path(__file__).resolve().parents[2] / "jarvis_memory.json"
+
+
+def _memories():
+    try:
+        return json.loads(_MEM_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        return []
+
+
+def _save_memories(mem):
+    try:
+        _MEM_PATH.write_text(json.dumps(mem, indent=1), encoding="utf-8")
+    except OSError as exc:
+        print("[dispatch] could not save memories: %s" % exc)
 
 
 def chat_provider():
@@ -190,12 +214,19 @@ def _chat(prompt):
     if provider is None:
         return None
     try:
+        mems = _memories()
+        system = _SYSTEM
+        if mems:
+            system += ("\nDurable facts about the user, remembered from past "
+                       "conversations — use them naturally: " + "; ".join(str(m) for m in mems[-40:]))
+        msgs = [m for m in _history if m.get("content")] + [{"role": "user", "content": prompt}]
+
         if provider == "anthropic":
             model = os.environ.get("JARVIS_CHAT_MODEL", "claude-haiku-4-5-20251001")
             headers = {"x-api-key": _env_ascii("ANTHROPIC_API_KEY"),
                        "anthropic-version": "2023-06-01", "content-type": "application/json"}
-            base = {"model": model, "max_tokens": 400, "system": _SYSTEM,
-                    "messages": [{"role": "user", "content": prompt}]}
+            base = {"model": model, "max_tokens": 400, "system": system,
+                    "messages": msgs}
             # Try with live web search first; if the tool isn't available on the
             # account/model, retry the same request without it.
             attempts = []
@@ -225,8 +256,7 @@ def _chat(prompt):
             {"Authorization": "Bearer %s" % _env_ascii("OPENAI_API_KEY"),
              "Content-Type": "application/json"},
             {"model": model, "temperature": 0.6, "max_tokens": 220,
-             "messages": [{"role": "system", "content": _SYSTEM},
-                          {"role": "user", "content": prompt}]},
+             "messages": [{"role": "system", "content": system}] + msgs},
         )
         reply = data["choices"][0]["message"]["content"].strip()
         _last_brain_error = None
@@ -238,7 +268,23 @@ def _chat(prompt):
 
 
 def handle(text):
-    """Return ``{"reply": str, "intent": str}`` for a free-text command."""
+    """Return ``{"reply": str, "intent": str}`` for a free-text command.
+
+    Every exchange is recorded into the rolling conversation history so the
+    brain always knows what was just said (real-time context).
+    """
+    res = _handle_inner(text)
+    try:
+        raw = (text or "").strip()
+        if raw and res.get("reply") and res.get("intent") not in ("idle",):
+            _history.append({"role": "user", "content": raw})
+            _history.append({"role": "assistant", "content": res["reply"]})
+    except Exception:
+        pass
+    return res
+
+
+def _handle_inner(text):
     raw = (text or "").strip()
     cmd = _norm(raw)
     if not cmd:
@@ -260,6 +306,24 @@ def handle(text):
     if has("who are you", "what are you", "your name", "introduce yourself"):
         return {"reply": "I am %s, sir — just a rather very intelligent system, at your service." % config.ASSISTANT_NAME,
                 "intent": "identity"}
+
+    # --- durable memory ("remember that ...") ---
+    if cmd.startswith("remember"):
+        fact = re.sub(r"^remember\s+(that\s+)?", "", cmd).strip()
+        if fact:
+            mem = _memories()
+            mem.append(fact)
+            _save_memories(mem)
+            return {"reply": "Noted, sir. I'll remember that.", "intent": "memory"}
+    if has("what do you remember", "what do you know about me", "your memories"):
+        mem = _memories()
+        if not mem:
+            return {"reply": "Nothing on file yet, sir. Tell me 'remember that...' and I'll keep it.",
+                    "intent": "memory"}
+        return {"reply": "I remember: " + "; ".join(str(m) for m in mem[-12:]) + ".", "intent": "memory"}
+    if has("forget everything", "wipe your memory", "clear your memory"):
+        _save_memories([])
+        return {"reply": "Memory wiped clean, sir.", "intent": "memory"}
 
     # --- greetings ---
     if cmd in ("hi", "hey", "hello", "yo", "hiya", "howdy", "hola", "sup") or \

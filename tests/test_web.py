@@ -41,6 +41,35 @@ def test_chat_provider_selection(monkeypatch):
     assert dispatch.chat_provider() == "anthropic"
 
 
+def test_memory_remember_recall_forget(monkeypatch, tmp_path):
+    monkeypatch.setattr(dispatch, "_MEM_PATH", tmp_path / "mem.json")
+    out = dispatch.handle("jarvis remember that my dog is named ace")
+    assert out["intent"] == "memory"
+    assert dispatch._memories() == ["my dog is named ace"]
+    assert "ace" in dispatch.handle("what do you remember")["reply"]
+    dispatch.handle("forget everything")
+    assert dispatch._memories() == []
+
+
+def test_history_feeds_the_brain(monkeypatch, tmp_path):
+    # the brain call must include prior exchanges as real conversation turns
+    monkeypatch.setattr(dispatch, "_MEM_PATH", tmp_path / "mem.json")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
+    dispatch._history.clear()
+    dispatch._history.append({"role": "user", "content": "my name is blake"})
+    dispatch._history.append({"role": "assistant", "content": "A pleasure, Blake."})
+    captured = {}
+    def fake_post(url, headers, payload, timeout=25):
+        captured.update(payload)
+        return {"content": [{"type": "text", "text": "Blake, sir."}]}
+    monkeypatch.setattr(dispatch, "_post_json", fake_post)
+    monkeypatch.setenv("JARVIS_WEB_SEARCH", "0")
+    assert dispatch._chat("what's my name?") == "Blake, sir."
+    roles = [m["role"] for m in captured["messages"]]
+    assert roles == ["user", "assistant", "user"]
+    dispatch._history.clear()
+
+
 def test_live_weather_formats_reply(monkeypatch):
     # keyless Open-Meteo path: geocode -> forecast -> spoken sentence
     def fake_get(url, timeout=8):

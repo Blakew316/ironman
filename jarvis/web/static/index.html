@@ -1097,7 +1097,9 @@ class CoreOrb{
   // so follow-up questions don't need the wake word again
   function openFollowUp(){ if(!wakeMode) return; awaiting=true; clearTimeout(awaitT);
     if(CORE)CORE.setState("listening");
-    awaitT=setTimeout(()=>{awaiting=false; if(CORE&&CORE.state==="listening")CORE.setState("idle");},20000); }
+    // say "Jarvis" once, then converse freely — the window stays open a full
+    // 2 minutes after every exchange
+    awaitT=setTimeout(()=>{awaiting=false; if(CORE&&CORE.state==="listening")CORE.setState("idle");},120000); }
 
   async function runCommand(text){ if(!text)return; showReply("· "+text+" ·","dim"); if(CORE)CORE.setState("thinking");
     clearTimeout(_cmdClrT); $("#cmd").value="";                // the question never lingers in the input
@@ -1144,10 +1146,17 @@ class CoreOrb{
     rec.onerror=()=>{ listening=false; $("#mic").classList.remove("live"); animWaves(false); if(CORE&&CORE.state==="listening")CORE.setState("idle"); };
     try{rec.start();}catch(e){} }
 
-  // ---- hands-free wake word: say "jarvis ..." ----
+  // ---- hands-free voice: wake-word mode or full open mic ----
   const WAKE="jarvis";
-  function setWakeUI(on){ $("#wake").classList.toggle("on",on);
-    $("#wakeState").textContent=on?"LISTENING — SAY “JARVIS …”":"CLICK WAKE, THEN SAY “JARVIS”"; animWaves(on); }
+  let voiceModeN=0;  // 0 = off · 1 = wake-word · 2 = open mic (no wake word)
+  function setWakeUI(){ const on=voiceModeN>0;
+    $("#wake").classList.toggle("on",on);
+    $("#wake").textContent=voiceModeN===2?"OPEN":"WAKE";
+    $("#wakeState").textContent=
+      voiceModeN===0?"CLICK WAKE, THEN SAY “JARVIS”":
+      voiceModeN===1?"LISTENING — SAY “JARVIS …” · CLICK AGAIN FOR OPEN MIC":
+      "OPEN MIC — JUST TALK, NO WAKE WORD";
+    animWaves(on); }
   let _lastHint=0;
   function handleWakeFinal(txt){
     txt=(txt||"").toLowerCase().trim(); if(!txt) return;
@@ -1156,11 +1165,15 @@ class CoreOrb{
       stopSpeaking();                      // barge-in: you said "Jarvis" — he shuts up and listens
     }
     flashCmd(txt);
+    if(voiceModeN===2){                                        // open mic: everything is a command
+      const c=txt.replace(/\bjarvis\b[\s,.:;!?]*/g," ").replace(/\s+/g," ").trim();
+      if(c) runCommand(c);
+      return; }
     if(awaiting){ clearTimeout(awaitT); awaiting=false; runCommand(txt); return; }
     const i=txt.indexOf(WAKE);
     if(i<0){                                                   // no wake word — say so instead of silently ignoring
       if(txt.split(/\s+/).length>=3 && Date.now()-_lastHint>30000){ _lastHint=Date.now();
-        showReply("I heard you, sir — start with “Jarvis …”, or ask again within a few seconds of my reply."); }
+        showReply("I heard you, sir — say “Jarvis …”, keep talking within 2 minutes of my reply, or click WAKE again for open mic."); }
       return; }
     const cmd=txt.slice(i+WAKE.length).replace(/^[\s,.:;!?]+/,"").trim();
     if(cmd){ runCommand(cmd); }
@@ -1169,7 +1182,7 @@ class CoreOrb{
   }
   function startWake(){ if(!SR){ alert("Hands-free voice needs Chrome (Web Speech API)."); return; }
     if(listening&&rec){ try{rec.stop();}catch(e){} }
-    wakeMode=true; setWakeUI(true);
+    wakeMode=true; setWakeUI();
     wakeRec=new SR(); wakeRec.lang="en-US"; wakeRec.continuous=true; wakeRec.interimResults=true;
     wakeRec.onresult=e=>{ for(let k=e.resultIndex;k<e.results.length;k++){ const res=e.results[k];
         if(res.isFinal) handleWakeFinal(res[0].transcript); else flashCmd(res[0].transcript); } };
@@ -1179,12 +1192,16 @@ class CoreOrb{
       else if(ev.error&&ev.error!=="no-speech"&&ev.error!=="aborted"){
         showReply("Voice input error: "+ev.error+" — check the mic and network, sir."); } };
     try{ wakeRec.start(); showReply("Voice online — say “Jarvis”, sir."); }catch(e){} }
-  function stopWake(){ wakeMode=false; awaiting=false; clearTimeout(awaitT); setWakeUI(false);
+  function stopWake(){ wakeMode=false; voiceModeN=0; awaiting=false; clearTimeout(awaitT); setWakeUI();
     if(wakeRec){ try{ wakeRec.onend=null; wakeRec.stop(); }catch(e){} wakeRec=null; }
     if(CORE&&CORE.state==="listening")CORE.setState("idle"); }
 
   /* ---------- events ---------- */
-  $("#wake").addEventListener("click",()=>wakeMode?stopWake():startWake());
+  $("#wake").addEventListener("click",()=>{ // cycles: off -> wake-word -> open mic -> off
+    voiceModeN=(voiceModeN+1)%3;
+    if(voiceModeN===1) startWake();
+    else if(voiceModeN===2){ setWakeUI(); showReply("Open mic, sir — just talk to me."); }
+    else stopWake(); });
   $("#mic").addEventListener("click",()=>listening?rec&&rec.stop():startListen());
   $("#jarvisCore").addEventListener("click",()=>wakeMode?stopWake():(listening?rec&&rec.stop():startListen()));
   $("#core").addEventListener("click",()=>wakeMode?stopWake():(listening?rec&&rec.stop():startListen()));
