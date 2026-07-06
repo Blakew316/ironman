@@ -903,7 +903,10 @@ class CoreOrb{
     if(!t) return;
     if(TTS_ON && LIVE){
       try{
-        const r=await fetch("/api/tts",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:t})});
+        const ctl=new AbortController();
+        const to=setTimeout(()=>ctl.abort(), 45000);  // never hang the UI forever
+        const r=await fetch("/api/tts",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:t}),signal:ctl.signal});
+        clearTimeout(to);
         if(r.ok && r.status!==204){
           const url=URL.createObjectURL(await r.blob());
           try{ speechSynthesis.cancel(); }catch(e){}
@@ -911,10 +914,11 @@ class CoreOrb{
           _audio=new Audio(url);
           _audio.onplay=()=>CORE&&CORE.setState("talking");
           _audio.onended=()=>{ CORE&&CORE.setState(listening?"listening":"idle"); URL.revokeObjectURL(url); };
+          _audio.onerror=()=>{ URL.revokeObjectURL(url); browserSpeak(t); };
           await _audio.play();
           return;
         }
-      }catch(e){/* fall through to browser voice */}
+      }catch(e){/* timeout / abort / network -> browser voice */}
     }
     browserSpeak(t);
   }

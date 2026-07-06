@@ -160,13 +160,30 @@ def main():
             '    pip install -e ".[web]"'
         )
 
+    # If a local cloned voice (XTTS) is configured, warm-load the model in the
+    # background so the first spoken reply isn't a 20–30s stall.
+    from jarvis.web import tts
+    if tts.provider() == "xtts":
+        import threading
+
+        def _warm():
+            try:
+                print("  Preloading your cloned voice (XTTS) in the background…")
+                tts.synthesize("Systems online.")
+                print("  Voice ready.")
+            except Exception as exc:  # pragma: no cover
+                print(f"  [tts] voice preload failed: {exc}")
+
+        threading.Thread(target=_warm, daemon=True).start()
+
     print(f"\n  J.A.R.V.I.S HUD online at {url}\n  Press Ctrl-C to shut down.\n")
     if os.environ.get("JARVIS_WEB_NO_BROWSER") != "1":
         try:
             webbrowser.open(url)
         except Exception:
             pass
-    app.run(host=host, port=port, debug=False, use_reloader=False)
+    # threaded=True so slow speech synthesis never blocks commands/stats.
+    app.run(host=host, port=port, debug=False, use_reloader=False, threaded=True)
 
 
 if __name__ == "__main__":
