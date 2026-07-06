@@ -109,6 +109,20 @@ def create_app():
     def stats():
         return jsonify(_stats())
 
+    @app.route("/api/braintest")
+    def braintest():
+        """Live check of the reasoning brain so the HUD can report a broken
+        key/billing problem instead of JARVIS silently playing dumb."""
+        from jarvis.web import dispatch
+
+        p = dispatch.chat_provider()
+        if p is None:
+            return jsonify({"ok": False, "provider": None,
+                            "error": "no ANTHROPIC_API_KEY / OPENAI_API_KEY configured"})
+        out = dispatch._chat("Reply with the single word: OK")
+        return jsonify({"ok": bool(out), "provider": p,
+                        "error": None if out else (dispatch._last_brain_error or "no response")})
+
     @app.route("/api/command", methods=["POST"])
     def command():
         from jarvis.web.dispatch import handle
@@ -179,6 +193,24 @@ def main():
                 print(f"  [tts] voice preload failed: {exc}")
 
         threading.Thread(target=_warm, daemon=True).start()
+
+    # Self-test the reasoning brain at startup and say the verdict out loud in
+    # the terminal, so a dead key/billing problem is visible immediately.
+    from jarvis.web import dispatch as _dispatch
+    _brain = _dispatch.chat_provider()
+    if _brain is None:
+        print("  Brain: NOT CONFIGURED (set ANTHROPIC_API_KEY in .env for full answers)")
+    else:
+        import threading as _th
+
+        def _brain_check():
+            out = _dispatch._chat("Reply with the single word: OK")
+            if out:
+                print(f"  Brain: {_brain} — ONLINE")
+            else:
+                print(f"  Brain: {_brain} — FAILED: {_dispatch._last_brain_error}")
+
+        _th.Thread(target=_brain_check, daemon=True).start()
 
     print(f"\n  J.A.R.V.I.S HUD online at {url}\n  Press Ctrl-C to shut down.\n")
     if os.environ.get("JARVIS_WEB_NO_BROWSER") != "1":

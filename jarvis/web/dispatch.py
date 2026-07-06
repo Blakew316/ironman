@@ -13,6 +13,7 @@ import json
 import os
 import random
 import re
+import urllib.error
 import urllib.request
 
 from jarvis.nlp import action_phrases as ap
@@ -69,8 +70,22 @@ def chat_provider():
 def _post_json(url, headers, payload, timeout=25):
     req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"),
                                  headers=headers, method="POST")
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        return json.loads(resp.read())
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return json.loads(resp.read())
+    except urllib.error.HTTPError as exc:
+        # surface the API's own explanation (invalid key, no credits, ...)
+        try:
+            detail = json.loads(exc.read().decode("utf-8", "replace"))
+            msg = detail.get("error", {}).get("message", "") or str(detail)
+        except Exception:
+            msg = exc.reason or ""
+        raise RuntimeError("HTTP %s: %s" % (exc.code, str(msg)[:200])) from exc
+
+
+# Last reason the reasoning brain failed, so the HUD can say WHY instead of
+# silently playing dumb.
+_last_brain_error = None
 
 
 def _chat(prompt):
@@ -80,6 +95,7 @@ def _chat(prompt):
     The spoken voice is handled separately, so the brain and voice are
     independent — you can pair any brain with your cloned voice.
     """
+    global _last_brain_error
     provider = chat_provider()
     if provider is None:
         return None
@@ -104,10 +120,12 @@ def _chat(prompt):
                     data = _post_json("https://api.anthropic.com/v1/messages", headers, payload)
                 except Exception as exc:
                     print("[dispatch] claude call failed: %s" % exc)
+                    _last_brain_error = str(exc)
                     continue
                 parts = [b.get("text", "") for b in data.get("content", []) if b.get("type") == "text"]
                 txt = ("".join(parts)).strip()
                 if txt:
+                    _last_brain_error = None
                     return txt
             return None
 
@@ -120,9 +138,12 @@ def _chat(prompt):
              "messages": [{"role": "system", "content": _SYSTEM},
                           {"role": "user", "content": prompt}]},
         )
-        return data["choices"][0]["message"]["content"].strip()
+        reply = data["choices"][0]["message"]["content"].strip()
+        _last_brain_error = None
+        return reply
     except Exception as exc:
         print("[dispatch] chat brain (%s) failed: %s" % (provider, exc))
+        _last_brain_error = str(exc)
         return None
 
 
@@ -202,10 +223,25 @@ def handle(text):
             if topic:
                 return {"reply": wikipedia_search.search(topic), "intent": "wikipedia"}
 
-    # --- conversational fallback (any question/statement) via OpenAI ---
+    # --- conversational fallback (any question/statement) via the brain ---
     answer = _chat(raw)
     if answer:
         return {"reply": answer, "intent": "chat"}
+    if chat_provider() is not None:
+        # A brain IS configured but the call failed — say WHY instead of
+        # pretending not to know. This turns a silent outage into a fix.
+        err = _last_brain_error or "no response from the API"
+        low = err.lower()
+        if "credit" in low or "billing" in low or "purchase" in low:
+            hint = " The API account is out of credits — add credits at console.anthropic.com under Billing."
+        elif "401" in err or "authentication" in low or "invalid x-api-key" in low:
+            hint = " The API key was rejected — it may be mistyped, expired, or revoked."
+        elif "overloaded" in low or "529" in err or "rate" in low:
+            hint = " The service is briefly overloaded — try again in a moment."
+        else:
+            hint = ""
+        return {"reply": "My reasoning core hit an error, sir: %s.%s" % (err, hint),
+                "intent": "brain-error"}
 
     # --- informational questions -> Wikipedia best-effort ---
     if has("who is", "who was", "what is", "what are", "where is", "who are"):

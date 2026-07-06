@@ -69,6 +69,30 @@ def test_tell_me_about_prefers_brain(monkeypatch):
     assert all(dispatch._norm(t) for t in _wiki)
 
 
+def test_brain_failure_is_reported_not_hidden(monkeypatch):
+    # brain configured but the API call fails -> JARVIS says WHY, with a
+    # billing hint when the account is out of credits
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
+    monkeypatch.setattr(dispatch, "_chat", lambda prompt: None)
+    monkeypatch.setattr(dispatch, "_last_brain_error",
+                        "HTTP 400: Your credit balance is too low to access the Anthropic API")
+    out = dispatch.handle("why is the sky blue")
+    assert out["intent"] == "brain-error"
+    assert "credit balance" in out["reply"]
+    assert "console.anthropic.com" in out["reply"]
+
+
+def test_braintest_route(monkeypatch):
+    pytest.importorskip("flask")
+    from jarvis.web.server import create_app
+
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    client = create_app().test_client()
+    j = client.get("/api/braintest").get_json()
+    assert j["ok"] is False and j["provider"] is None
+
+
 def test_dispatch_power_denied_by_default(monkeypatch):
     monkeypatch.delenv("JARVIS_WEB_ALLOW_POWER", raising=False)
     out = dispatch.handle("shut down")

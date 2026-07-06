@@ -1051,6 +1051,11 @@ class CoreOrb{
   // starts a moment after the page loads still gets the good voice
   function checkTTS(){ fetch("/api/health").then(r=>r.json()).then(j=>{ TTS_ON=!!j.tts; }).catch(()=>{}); }
   checkTTS(); setInterval(checkTTS,10000);
+  // verify the reasoning brain and pin any failure on screen so a broken key
+  // or empty API balance is impossible to miss
+  setTimeout(()=>{ fetch("/api/braintest").then(r=>r.json()).then(j=>{
+    if(j && j.ok===false){ showReply("⚠ REASONING CORE OFFLINE — "+(j.error||"unknown error"));
+      clearTimeout(showReply._t); } }).catch(()=>{}); },4000);
 })();
 </script>
 </body>
