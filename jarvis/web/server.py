@@ -185,7 +185,7 @@ def create_app():
         from jarvis.web import tts as ttsmod
 
         payload = request.get_json(silent=True) or {}
-        audio, mime = ttsmod.synthesize(payload.get("text", ""))
+        audio, mime = ttsmod.synthesize(payload.get("text", ""), payload.get("prev", "") or "")
         if not audio:
             return ("", 204)  # not configured / failed -> HUD uses the browser voice
         return Response(audio, mimetype=mime)

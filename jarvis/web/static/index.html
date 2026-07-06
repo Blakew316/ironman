@@ -693,7 +693,7 @@ body{color:var(--white);letter-spacing:.06em}
   <div id="wake" title="Hands-free: listen for the wake word">WAKE</div>
   <div id="mic" title="Click and speak one command"><svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V21h2v-3.1A7 7 0 0 0 19 11z"/></svg></div>
 </div>
-<div id="status">LINK: <b id="linkState">…</b> · <b id="wakeState">CLICK WAKE, THEN SAY “JARVIS”</b> · <b id="voiceState">VOICE: …</b></div>
+<div id="status">LINK: <b id="linkState">…</b> · <b id="wakeState">CLICK WAKE, THEN SAY “JARVIS”</b> · <b id="voiceState">VOICE: …</b> · <b id="buildTag">B21</b></div>
 <div id="vignette"></div>
 <div class="hudc" id="hc-tl"></div><div class="hudc" id="hc-tr"></div>
 <div class="hudc" id="hc-bl"></div><div class="hudc" id="hc-br"></div>
@@ -1019,8 +1019,8 @@ class CoreOrb{
   // premium backend voice (ElevenLabs / OpenAI) when a key is configured,
   // otherwise fall back to the browser voice.
   let TTS_ON=false, _audio=null, _sayId=0, _cmdClrT=null;
-  function _ttsFetch(s){ const ctl=new AbortController(); const to=setTimeout(()=>ctl.abort(),22000);
-    return fetch("/api/tts",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:s}),signal:ctl.signal})
+  function _ttsFetch(s,prev){ const ctl=new AbortController(); const to=setTimeout(()=>ctl.abort(),22000);
+    return fetch("/api/tts",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:s,prev:prev||""}),signal:ctl.signal})
       .then(r=>{ clearTimeout(to); return (r.ok&&r.status!==204)?r.blob():null; }).catch(()=>null); }
   function _playBlob(blob){ return new Promise(res=>{ const url=URL.createObjectURL(blob);
     if(_audio){ try{_audio.pause();}catch(e){} }
@@ -1046,13 +1046,14 @@ class CoreOrb{
   // pauses, and the voice keeps a natural flow across a thought
   function speechChunks(t){
     t=String(t).replace(/[*_#`~]+/g,"").replace(/\s+/g," ").trim();   // never read markdown aloud
+    // ONE request per reply = one consistent take (no tone/volume jumps
+    // mid-answer). Only very long replies split, and those pieces carry
+    // continuity context server-side.
+    if(t.length<=450) return [t];
     const sents=(t.match(/[^.!?]+[.!?]*/g)||[t]).map(s=>s.trim()).filter(Boolean);
     const out=[]; let cur="";
     for(const s of sents){
-      // first chunk stays SHORT so he starts speaking almost with the text;
-      // later chunks are longer for smooth flow
-      const cap=out.length?200:90;
-      if(cur && (cur.length+s.length)>cap){ out.push(cur); cur=s; }
+      if(cur && (cur.length+s.length)>350){ out.push(cur); cur=s; }
       else cur=cur?cur+" "+s:s; }
     if(cur) out.push(cur); return out.length?out:[t]; }
 
@@ -1063,11 +1064,12 @@ class CoreOrb{
       const parts=speechChunks(t);
       const id=++_sayId; try{ speechSynthesis.cancel(); }catch(e){}
       if(CORE)CORE.setState("talking");
-      let next=_ttsFetch(parts[0]), ok=false;
+      const ce=$("#cmd"); if(document.activeElement!==ce) ce.value="";   // reply begins -> input is clean
+      let next=_ttsFetch(parts[0],""), ok=false;
       for(let i=0;i<parts.length;i++){
         const blob=await next;
         if(id!==_sayId) return;                                  // superseded by a newer reply
-        if(i+1<parts.length) next=_ttsFetch(parts[i+1]);         // prefetch next while this plays
+        if(i+1<parts.length) next=_ttsFetch(parts[i+1],parts[i]); // prefetch next while this plays
         if(blob){ ok=true; const vs=$("#voiceState"); if(vs) vs.textContent="VOICE: CLONED";
           await _playBlob(blob); if(id!==_sayId) return; }
         else { const vs=$("#voiceState"); if(vs) vs.textContent="VOICE: BROWSER (clone timed out)";
@@ -1145,7 +1147,7 @@ class CoreOrb{
   // live transcript preview that cleans up after itself — heard speech shows
   // in the input for a moment, then vanishes instead of lingering
   function flashCmd(t){ const c=$("#cmd"); if(document.activeElement===c) return; c.value=t;
-    clearTimeout(_cmdClrT); _cmdClrT=setTimeout(()=>{ if(document.activeElement!==c) c.value=""; },3000); }
+    clearTimeout(_cmdClrT); _cmdClrT=setTimeout(()=>{ if(document.activeElement!==c) c.value=""; },1500); }
   const waves=$$("#waves i");
   function animWaves(on){ waves.forEach(w=>{ w.style.transition="height .12s"; }); if(!on){waves.forEach(w=>w.style.height="20%");return;}
     (function loop(){ if(!listening&&!wakeMode)return; waves.forEach(w=>w.style.height=(15+Math.random()*85)+"%"); requestAnimationFrame(()=>setTimeout(loop,90)); })(); }

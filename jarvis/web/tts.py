@@ -138,7 +138,7 @@ def _post(url, headers, payload, timeout=30):
         raise RuntimeError("HTTP %s: %s" % (exc.code, detail)) from exc
 
 
-def _elevenlabs(text):
+def _elevenlabs(text, prev=""):
     voice = os.environ.get("ELEVENLABS_VOICE_ID", _DEFAULT_ELEVEN_VOICE)
     model = os.environ.get("ELEVENLABS_MODEL", "eleven_turbo_v2_5")
     # full-quality output — the aggressive latency mode + low bitrate audibly
@@ -165,6 +165,10 @@ def _elevenlabs(text):
             except ValueError:
                 pass
     payload = {"text": text, "model_id": model}
+    if prev:
+        # prosody continuity: when a long reply is split, each piece knows
+        # what came before it, so tone and volume don't jump between pieces
+        payload["previous_text"] = prev[-300:]
     if settings:
         payload["voice_settings"] = settings
     return _post(url, headers, json.dumps(payload).encode("utf-8"))
@@ -212,11 +216,12 @@ def _cache_trim(limit=400):
             pass
 
 
-def synthesize(text):
+def synthesize(text, prev=""):
     """Return ``(audio_bytes, mimetype)`` or ``(None, None)`` if unavailable.
 
     Repeated lines (greetings, acknowledgements, anything said before) are
     served from a small on-disk cache, so they play instantly and cost no CPU.
+    ``prev`` carries the preceding piece of a split reply for continuity.
     """
     global last_error
     text = (text or "").strip()
@@ -226,7 +231,7 @@ def synthesize(text):
     if p is None:
         return None, None
     ext, mime = ("wav", "audio/wav") if p == "xtts" else ("mp3", "audio/mpeg")
-    cache = _cache_path(p, text, ext)
+    cache = _cache_path(p, (prev + "\x1f" + text) if prev else text, ext)
     try:
         if cache.is_file():
             return cache.read_bytes(), mime
@@ -236,7 +241,7 @@ def synthesize(text):
         if p == "xtts":
             audio = _xtts(text)
         elif p == "elevenlabs":
-            audio = _elevenlabs(text)
+            audio = _elevenlabs(text, prev)
         else:
             audio = _openai(text)
         if audio:
