@@ -67,11 +67,22 @@ def chat_provider():
     return None
 
 
+def _ssl_context():
+    """Use certifi's CA bundle when available — macOS Pythons often can't
+    verify TLS with the system default, which kills every API call."""
+    try:
+        import ssl
+        import certifi
+        return ssl.create_default_context(cafile=certifi.where())
+    except Exception:
+        return None
+
+
 def _post_json(url, headers, payload, timeout=25):
     req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"),
                                  headers=headers, method="POST")
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        with urllib.request.urlopen(req, timeout=timeout, context=_ssl_context()) as resp:
             return json.loads(resp.read())
     except urllib.error.HTTPError as exc:
         # surface the API's own explanation (invalid key, no credits, ...)

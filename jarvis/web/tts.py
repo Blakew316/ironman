@@ -107,8 +107,10 @@ def _xtts(text):
 
 
 def _post(url, headers, payload, timeout=30):
+    from jarvis.web.dispatch import _ssl_context
+
     req = urllib.request.Request(url, data=payload, headers=headers, method="POST")
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
+    with urllib.request.urlopen(req, timeout=timeout, context=_ssl_context()) as resp:
         return resp.read()
 
 
