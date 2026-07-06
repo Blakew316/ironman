@@ -160,7 +160,7 @@ body{color:var(--white);letter-spacing:.06em}
 #powerline .t b{color:var(--cyan);font-family:var(--mono)}
 
 /* ---------- big reactors ---------- */
-#jarvisCore{left:150px;top:600px;width:360px;height:360px;cursor:pointer}
+#jarvisCore{left:150px;top:470px;width:340px;height:340px;cursor:pointer}
 #jarvisCore .label{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
   font-size:30px;font-weight:700;letter-spacing:.34em;color:var(--white);text-shadow:0 0 18px var(--cyan);pointer-events:none}
 #social{right:120px;bottom:70px;width:320px;height:320px}
@@ -175,7 +175,7 @@ body{color:var(--white);letter-spacing:.06em}
   text-shadow:0 0 22px rgba(42,212,255,.35)}
 #bigclock .t small{font-size:34px;color:var(--cyan)}
 #bigclock .sub{font-size:14px;color:var(--dim);letter-spacing:.2em;margin-top:4px}
-#cal{left:250px;bottom:150px;width:320px;height:52px;border:0;background:none}
+#cal{left:250px;bottom:196px;width:320px;height:52px;border:0;background:none}
 #cal table{width:100%;border-collapse:collapse;font-size:12px;font-family:var(--mono)}
 #cal td,#cal th{padding:2px 0;text-align:center;color:var(--dim)}
 #cal th{color:var(--cyan);font-weight:400}
@@ -885,7 +885,9 @@ class CoreOrb{
         || vs.find(v=>/^en/i.test(v.lang)) || vs[0];
   }
   if("speechSynthesis"in window){ try{ speechSynthesis.onvoiceschanged=()=>{JVOICE=pickVoice();}; }catch(e){} JVOICE=pickVoice(); }
-  function speak(t){ try{ if(!("speechSynthesis"in window))return;
+
+  // browser (built-in) voice — the free fallback
+  function browserSpeak(t){ try{ if(!("speechSynthesis"in window))return;
     if(!JVOICE) JVOICE=pickVoice();
     const u=new SpeechSynthesisUtterance(t);
     if(JVOICE){ u.voice=JVOICE; u.lang=JVOICE.lang; } else { u.lang="en-GB"; }
@@ -893,6 +895,29 @@ class CoreOrb{
     u.onstart=()=>CORE&&CORE.setState("talking");
     u.onend=()=>CORE&&CORE.setState(listening?"listening":"idle");
     speechSynthesis.cancel(); speechSynthesis.speak(u);}catch(e){} }
+
+  // premium backend voice (ElevenLabs / OpenAI) when a key is configured,
+  // otherwise fall back to the browser voice.
+  let TTS_ON=false, _audio=null;
+  async function speak(t){
+    if(!t) return;
+    if(TTS_ON && LIVE){
+      try{
+        const r=await fetch("/api/tts",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:t})});
+        if(r.ok && r.status!==204){
+          const url=URL.createObjectURL(await r.blob());
+          try{ speechSynthesis.cancel(); }catch(e){}
+          if(_audio){ try{_audio.pause();}catch(e){} }
+          _audio=new Audio(url);
+          _audio.onplay=()=>CORE&&CORE.setState("talking");
+          _audio.onended=()=>{ CORE&&CORE.setState(listening?"listening":"idle"); URL.revokeObjectURL(url); };
+          await _audio.play();
+          return;
+        }
+      }catch(e){/* fall through to browser voice */}
+    }
+    browserSpeak(t);
+  }
 
   async function runCommand(text){ if(!text)return; showReply("· "+text+" ·","dim"); if(CORE)CORE.setState("thinking");
     if(LIVE){ try{ const r=await fetch("/api/command",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text})});
@@ -935,10 +960,14 @@ class CoreOrb{
   $("#mic").addEventListener("click",()=>listening?rec&&rec.stop():startListen());
   $("#jarvisCore").addEventListener("click",()=>listening?rec&&rec.stop():startListen());
   $("#core").addEventListener("click",()=>listening?rec&&rec.stop():startListen());
+  function goFull(){ try{ (document.documentElement.requestFullscreen||document.documentElement.webkitRequestFullscreen).call(document.documentElement); }catch(e){} }
   $("#fsBtn").addEventListener("click",()=>{ try{
-      if(!document.fullscreenElement){ (document.documentElement.requestFullscreen||document.documentElement.webkitRequestFullscreen).call(document.documentElement); }
+      if(!document.fullscreenElement){ goFull(); }
       else { (document.exitFullscreen||document.webkitExitFullscreen).call(document); }
     }catch(e){} });
+  // fill the whole screen on the first interaction (fullscreen needs a user gesture)
+  let _fsDone=false;
+  addEventListener("pointerdown",()=>{ if(!_fsDone && !document.fullscreenElement){ _fsDone=true; goFull(); } },{capture:true});
   $("#cmd").addEventListener("keydown",e=>{ if(e.key==="Enter"){ runCommand(e.target.value.trim()); e.target.value=""; }});
   $$("[data-url]").forEach(el=>el.addEventListener("click",()=>{ const u=el.dataset.url; if(u&&u!=="#") open(u,"_blank","noopener"); }));
   $$("[data-power]").forEach(el=>el.addEventListener("click",()=>{ const a=el.dataset.power;
@@ -951,6 +980,8 @@ class CoreOrb{
   /* ---------- start ---------- */
   drawCal(); tick(); render(demo());
   setInterval(tick,1000); poll(); setInterval(poll,1500);
+  // detect a configured premium voice backend
+  fetch("/api/health").then(r=>r.json()).then(j=>{ TTS_ON=!!j.tts; }).catch(()=>{});
 })();
 </script>
 </body>

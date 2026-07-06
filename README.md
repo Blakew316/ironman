@@ -144,6 +144,23 @@ jarvis-web            # opens http://127.0.0.1:8731 in your browser
 | `JARVIS_WEB_NO_BROWSER` | `0` | set `1` to not auto-open the browser |
 | `JARVIS_WEB_ALLOW_POWER` | `0` | set `1` to allow shutdown/restart from the HUD |
 
+### Premium voice (optional)
+
+By default the HUD speaks with the browser's built-in voice (it picks a British
+male one like "Daniel" when available). For a much richer voice, set an API key
+for a cloud TTS service and the HUD will use it automatically (falling back to
+the browser voice if the call fails):
+
+| Env var | Purpose |
+|---|---|
+| `ELEVENLABS_API_KEY` | use ElevenLabs (best British male presets) |
+| `ELEVENLABS_VOICE_ID` | stock voice id (default: "Daniel", British male) |
+| `OPENAI_API_KEY` | use OpenAI TTS (voice `onyx` by default) |
+
+These use each provider's **stock** synthesized voices — not voice cloning.
+Add the key to your `.env`, restart `jarvis-web`, and the HUD speaks with the
+cloud voice.
+
 > The dashboard's layout is an original recreation inspired by a fan-made
 > Iron Man desktop theme; all graphics are drawn as original SVG/CSS.
 

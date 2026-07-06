@@ -38,6 +38,7 @@ MODULES = [
     "jarvis.web",
     "jarvis.web.server",
     "jarvis.web.dispatch",
+    "jarvis.web.tts",
 ]
 
 

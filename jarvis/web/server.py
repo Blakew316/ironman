@@ -88,7 +88,12 @@ def create_app():
 
     @app.route("/api/health")
     def health():
-        return jsonify({"ok": True, "assistant": os.environ.get("JARVIS_ASSISTANT_NAME", "Jarvis")})
+        from jarvis.web import tts
+        return jsonify({
+            "ok": True,
+            "assistant": os.environ.get("JARVIS_ASSISTANT_NAME", "Jarvis"),
+            "tts": tts.provider() is not None,
+        })
 
     @app.route("/api/stats")
     def stats():
@@ -101,6 +106,17 @@ def create_app():
         payload = request.get_json(silent=True) or {}
         result = handle(payload.get("text", ""))
         return jsonify(result)
+
+    @app.route("/api/tts", methods=["POST"])
+    def tts():
+        from flask import Response
+        from jarvis.web import tts as ttsmod
+
+        payload = request.get_json(silent=True) or {}
+        audio, mime = ttsmod.synthesize(payload.get("text", ""))
+        if not audio:
+            return ("", 204)  # not configured / failed -> HUD uses the browser voice
+        return Response(audio, mimetype=mime)
 
     @app.route("/api/media/<action>", methods=["POST"])
     def media(action):
