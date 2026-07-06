@@ -129,7 +129,10 @@ body{color:var(--white);letter-spacing:.06em}
 #stark{left:300px;top:150px;width:210px;height:34px;border:0;background:none;color:var(--cyan);
   font-size:20px;letter-spacing:.12em;font-weight:700;opacity:.75}
 #stark span{font-size:11px;color:var(--dim);display:block;letter-spacing:.4em}
-#gear{left:300px;top:210px;width:180px;height:180px}
+#gear{left:300px;top:205px;width:190px;height:190px}
+.arcR{filter:drop-shadow(0 0 16px rgba(42,212,255,.30))}
+#arc2{left:1195px;top:105px;width:120px;height:120px}
+#arc3{left:88px;bottom:42px;width:130px;height:130px}
 #hex{left:40px;top:430px;width:220px;height:150px}
 
 /* ---------- CENTER ---------- */
@@ -184,7 +187,7 @@ body{color:var(--white);letter-spacing:.06em}
 #batt{left:250px;bottom:8px;width:300px;height:20px;border:0;background:none;font-size:12px;display:flex;gap:14px;color:var(--dim)}
 #batt b{color:var(--cyan)}
 
-#minicpu{left:640px;bottom:70px;width:150px;height:80px;padding:6px 10px}
+#minicpu{left:250px;bottom:190px;width:150px;height:80px;padding:6px 10px}
 #minicpu .row{display:flex;justify-content:space-between;font-size:11px;margin:6px 0;color:var(--dim)}
 #wire{left:1030px;bottom:26px;width:150px;height:170px}
 #folders{right:470px;bottom:150px;width:210px;height:150px;border:0;background:none;
@@ -274,6 +277,74 @@ body{color:var(--white);letter-spacing:.06em}
     <radialGradient id="rg" cx="50%" cy="50%" r="50%">
       <stop offset="0%" stop-color="#eaffff"/><stop offset="30%" stop-color="#2ad4ff"/><stop offset="100%" stop-color="#06303f"/>
     </radialGradient>
+
+    <!-- ============ arc reactor (original vector rendering) ============ -->
+    <radialGradient id="arcCoreG" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="28%" stop-color="#d9f7ff"/>
+      <stop offset="55%" stop-color="#6fd2ff"/>
+      <stop offset="82%" stop-color="#1a7fd4" stop-opacity=".85"/>
+      <stop offset="100%" stop-color="#0a3a66" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="arcHaloG" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#9fe5ff" stop-opacity=".5"/>
+      <stop offset="55%" stop-color="#2ad4ff" stop-opacity=".16"/>
+      <stop offset="100%" stop-color="#2ad4ff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="arcMetalG" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#41637d"/>
+      <stop offset="35%" stop-color="#17293b"/>
+      <stop offset="68%" stop-color="#0b1826"/>
+      <stop offset="100%" stop-color="#2e4d68"/>
+    </linearGradient>
+    <filter id="arcBlur" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="4"/>
+    </filter>
+    <g id="arcReactor">
+      <!-- ambient energy halo -->
+      <circle r="98" fill="url(#arcHaloG)" class="pulse"/>
+      <!-- machined outer housing -->
+      <circle r="88" fill="none" stroke="url(#arcMetalG)" stroke-width="10"/>
+      <circle r="93.5" fill="none" stroke="#78d7ff" stroke-opacity=".45" stroke-width="1.2"/>
+      <circle r="82.5" fill="none" stroke="#0a141f" stroke-width="1.6"/>
+      <g fill="#9fd8f2" opacity=".85">
+        <circle cx="0" cy="-88" r="2.1"/><circle cx="0" cy="88" r="2.1"/>
+        <circle cx="-88" cy="0" r="2.1"/><circle cx="88" cy="0" r="2.1"/>
+        <circle cx="62.2" cy="-62.2" r="2.1"/><circle cx="-62.2" cy="62.2" r="2.1"/>
+        <circle cx="-62.2" cy="-62.2" r="2.1"/><circle cx="62.2" cy="62.2" r="2.1"/>
+      </g>
+      <!-- dark metal bed the coil windows sit in -->
+      <circle r="66" fill="none" stroke="#081019" stroke-width="25"/>
+      <!-- glow bleeding out of the windows -->
+      <circle r="66" fill="none" stroke="#2ad4ff" stroke-opacity=".5" stroke-width="26" filter="url(#arcBlur)"/>
+      <!-- the ten lit coil windows (classic reactor ring) -->
+      <circle r="66" fill="none" stroke="#c8f1ff" stroke-width="22" stroke-dasharray="29 12.469"
+              stroke-dashoffset="14.5" transform="rotate(-90)"/>
+      <circle r="66" fill="none" stroke="#54c4ff" stroke-width="15" stroke-dasharray="29 12.469"
+              stroke-dashoffset="14.5" transform="rotate(-90)" opacity=".95"/>
+      <!-- fine copper windings visible inside each window -->
+      <circle r="66" fill="none" stroke="#0f6ea8" stroke-width="22" stroke-dasharray="1.6 2.55"
+              opacity=".38" transform="rotate(-90)"/>
+      <!-- coil ring machining edges -->
+      <circle r="78" fill="none" stroke="#0d2233" stroke-width="2.4"/>
+      <circle r="54.5" fill="none" stroke="#0d2233" stroke-width="2.4"/>
+      <!-- slow light glint sweeping the coils -->
+      <g class="spin" style="animation-duration:52s">
+        <circle r="66" fill="none" stroke="#ffffff" stroke-opacity=".12" stroke-width="22" stroke-dasharray="42 372.7"/>
+      </g>
+      <!-- inner retaining ring -->
+      <circle r="47" fill="none" stroke="url(#arcMetalG)" stroke-width="9"/>
+      <circle r="42" fill="none" stroke="#7fd4ff" stroke-opacity=".75" stroke-width="1.4"/>
+      <g stroke="#9adcff" stroke-width="3" stroke-opacity=".65" stroke-linecap="round">
+        <line x1="0" y1="-46.5" x2="0" y2="-38.5"/><line x1="0" y1="46.5" x2="0" y2="38.5"/>
+        <line x1="40.3" y1="-23.3" x2="33.3" y2="-19.3"/><line x1="-40.3" y1="23.3" x2="-33.3" y2="19.3"/>
+        <line x1="-40.3" y1="-23.3" x2="-33.3" y2="-19.3"/><line x1="40.3" y1="23.3" x2="33.3" y2="19.3"/>
+      </g>
+      <!-- palladium core -->
+      <circle r="40" fill="url(#arcCoreG)" filter="url(#arcBlur)" opacity=".9"/>
+      <circle r="30" fill="url(#arcCoreG)"/>
+      <circle r="11" fill="#ffffff"/>
+    </g>
   </defs></svg>
 
   <!-- animated energy core (canvas) -->
@@ -388,22 +459,9 @@ body{color:var(--white);letter-spacing:.06em}
   </div>
   <div id="stark">STARK INDUSTRIES<span>ARC TECHNOLOGY</span></div>
 
-  <svg id="gear" viewBox="0 0 200 200">
-    <g class="spin" style="animation-duration:22s">
-      <circle cx="100" cy="100" r="70" fill="none" stroke="var(--stroke)"/>
-      <circle cx="100" cy="100" r="52" fill="none" stroke="var(--stroke-soft)" stroke-dasharray="4 6"/>
-      <g stroke="var(--cyan)" stroke-width="2">
-        <line x1="100" y1="20" x2="100" y2="42"/><line x1="100" y1="158" x2="100" y2="180"/>
-        <line x1="20" y1="100" x2="42" y2="100"/><line x1="158" y1="100" x2="180" y2="100"/>
-        <line x1="44" y1="44" x2="60" y2="60"/><line x1="140" y1="140" x2="156" y2="156"/>
-        <line x1="156" y1="44" x2="140" y2="60"/><line x1="60" y1="140" x2="44" y2="156"/>
-      </g>
-    </g>
-    <g class="spin-r" style="animation-duration:16s">
-      <circle cx="100" cy="100" r="34" fill="none" stroke="var(--cyan)" stroke-dasharray="20 12"/>
-    </g>
-    <circle cx="100" cy="100" r="16" fill="none" stroke="var(--cyan)" stroke-width="2" class="pulse"/>
-  </svg>
+  <svg id="gear" class="arcR" viewBox="-100 -100 200 200"><use href="#arcReactor"/></svg>
+  <svg id="arc2" class="arcR" viewBox="-100 -100 200 200"><use href="#arcReactor"/></svg>
+  <svg id="arc3" class="arcR" viewBox="-100 -100 200 200"><use href="#arcReactor"/></svg>
 
   <svg id="hex" viewBox="0 0 220 150"></svg>
 
@@ -645,7 +703,7 @@ class CoreOrb{
   constructor(canvas){
     this.c=canvas; this.x=canvas.getContext("2d");
     this.reduced=matchMedia("(prefers-reduced-motion: reduce)").matches;
-    this.DPR=Math.min(window.devicePixelRatio||1,2);
+    this.DPR=Math.min(window.devicePixelRatio||1,1.5);   // capped: retina full-res costs real heat
     const s=canvas.clientWidth||900;
     this.c.width=s*this.DPR; this.c.height=s*this.DPR;
     this.cx=this.c.width/2; this.cy=this.c.height/2; this.R=this.c.width*0.28;
@@ -692,13 +750,16 @@ class CoreOrb{
       forks.push(fp); }
     this.bolts.push({p,forks,life:0,ttl:5+(Math.random()*9|0)});
   }
-  _loop(){
-    const x=this.x, cx=this.cx, cy=this.cy, DPR=this.DPR, W=this.c.width, H=this.c.height; this.t+=1/60;
-    for(const k in this.p) this.p[k]+=(this.tg[k]-this.p[k])*0.06;
-    if(!this.reduced) this.angle+=this.p.rot*0.010;
+  _loop(ts){
+    // 30fps cap: half the GPU/CPU heat, invisible on a slow-drifting orb
+    if(this._last!==undefined && ts-this._last<31){ requestAnimationFrame(this._loop); return; }
+    this._last=ts;
+    const x=this.x, cx=this.cx, cy=this.cy, DPR=this.DPR, W=this.c.width, H=this.c.height; this.t+=1/30;
+    for(const k in this.p) this.p[k]+=(this.tg[k]-this.p[k])*0.12;
+    if(!this.reduced) this.angle+=this.p.rot*0.020;
     const talk=this.state==="talking", br=this.p.br, chaos=this.p.chaos;
     const tAmp=talk?Math.max(0,0.45+0.32*Math.sin(this.t*3.0)+0.2*Math.sin(this.t*5.1+1)):0;
-    this.amp+=(tAmp-this.amp)*0.07;
+    this.amp+=(tAmp-this.amp)*0.14;
     const breathe=talk?1+this.amp*0.07:1+Math.sin(this.t*(this.state==="listening"?4.5:1.6))*0.03;
     const R=this.R*this.p.exp*breathe;
 
@@ -731,7 +792,7 @@ class CoreOrb{
       for(let j=0;j<arr.length;j+=2) x.fillRect(arr[j]-h,arr[j+1]-h,sz,sz); }
 
     // listening ripple (blue)
-    if(this.ripple>=0){ this.ripple+=0.02; const rr=this.ripple;
+    if(this.ripple>=0){ this.ripple+=0.04; const rr=this.ripple;
       if(rr>1.15) this.ripple=this.state==="listening"?0:-1;
       x.strokeStyle="rgba(120,205,255,"+(0.45*(1-rr))+")"; x.lineWidth=2;
       x.beginPath(); x.arc(cx,cy,R*rr,0,7); x.stroke(); }
@@ -916,10 +977,21 @@ class CoreOrb{
     _audio.onerror=()=>{URL.revokeObjectURL(url);res();}; _audio.play().catch(()=>res()); }); }
   // Speak a reply. Streams sentence-by-sentence (pre-fetching the next while the
   // current plays) so it starts talking almost immediately and flows naturally.
+  // group sentences into ~2-sentence chunks: fewer joins = fewer awkward
+  // pauses, and the voice keeps a natural flow across a thought
+  function speechChunks(t){
+    t=String(t).replace(/[*_#`~]+/g,"").replace(/\s+/g," ").trim();   // never read markdown aloud
+    const sents=(t.match(/[^.!?]+[.!?]*/g)||[t]).map(s=>s.trim()).filter(Boolean);
+    const out=[]; let cur="";
+    for(const s of sents){
+      if(cur && (cur.length+s.length)>200){ out.push(cur); cur=s; }
+      else cur=cur?cur+" "+s:s; }
+    if(cur) out.push(cur); return out.length?out:[t]; }
+
   async function speak(t){
     if(!t) return;
     if(TTS_ON && (LIVE||EVER_LIVE)){
-      const parts=(String(t).match(/[^.!?]+[.!?]*/g)||[t]).map(s=>s.trim()).filter(Boolean);
+      const parts=speechChunks(t);
       const id=++_sayId; try{ speechSynthesis.cancel(); }catch(e){}
       if(CORE)CORE.setState("talking");
       let next=_ttsFetch(parts[0]), ok=false;
@@ -945,7 +1017,7 @@ class CoreOrb{
   // so follow-up questions don't need the wake word again
   function openFollowUp(){ if(!wakeMode) return; awaiting=true; clearTimeout(awaitT);
     if(CORE)CORE.setState("listening");
-    awaitT=setTimeout(()=>{awaiting=false; if(CORE&&CORE.state==="listening")CORE.setState("idle");},12000); }
+    awaitT=setTimeout(()=>{awaiting=false; if(CORE&&CORE.state==="listening")CORE.setState("idle");},20000); }
 
   async function runCommand(text){ if(!text)return; showReply("· "+text+" ·","dim"); if(CORE)CORE.setState("thinking");
     if(LIVE||EVER_LIVE){ for(let a=0;a<2;a++){ // one retry — a busy server isn't a dead server
@@ -1046,7 +1118,7 @@ class CoreOrb{
 
   /* ---------- start ---------- */
   drawCal(); tick(); render(demo());
-  setInterval(tick,1000); poll(); setInterval(poll,1500);
+  setInterval(tick,1000); poll(); setInterval(poll,2500);
   // detect a configured premium voice backend; keep checking so a server that
   // starts a moment after the page loads still gets the good voice
   function checkTTS(){ fetch("/api/health").then(r=>r.json()).then(j=>{ TTS_ON=!!j.tts; }).catch(()=>{}); }

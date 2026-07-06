@@ -13,10 +13,12 @@ than the browser's built-in one. Three backends, in priority order:
 None configured => disabled, and the HUD falls back to the browser voice.
 """
 
+import hashlib
 import json
 import os
 import threading
 import urllib.request
+from pathlib import Path
 
 # ElevenLabs "Daniel" — a stock British male preset (calm, news-presenter tone).
 # Any stock voice id can be substituted via ELEVENLABS_VOICE_ID.
@@ -148,19 +150,64 @@ def _openai(text):
     return _post(url, headers, body)
 
 
+def _cache_dir():
+    d = Path(__file__).resolve().parents[2] / "voices" / "tts_cache"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def _cache_path(p, text, ext):
+    bits = "|".join([
+        p, text,
+        os.environ.get("XTTS_SPEAKER_WAV", ""), os.environ.get("XTTS_LANGUAGE", ""),
+        os.environ.get("XTTS_SPEED", ""), os.environ.get("ELEVENLABS_VOICE_ID", ""),
+        os.environ.get("OPENAI_TTS_VOICE", ""),
+    ])
+    return _cache_dir() / ("%s.%s" % (hashlib.sha1(bits.encode("utf-8")).hexdigest(), ext))
+
+
+def _cache_trim(limit=400):
+    files = sorted(_cache_dir().glob("*.*"), key=lambda f: f.stat().st_mtime)
+    for f in files[:-limit]:
+        try:
+            f.unlink()
+        except OSError:
+            pass
+
+
 def synthesize(text):
-    """Return ``(audio_bytes, mimetype)`` or ``(None, None)`` if unavailable."""
+    """Return ``(audio_bytes, mimetype)`` or ``(None, None)`` if unavailable.
+
+    Repeated lines (greetings, acknowledgements, anything said before) are
+    served from a small on-disk cache, so they play instantly and cost no CPU.
+    """
     text = (text or "").strip()
     if not text:
         return None, None
     p = provider()
+    if p is None:
+        return None, None
+    ext, mime = ("wav", "audio/wav") if p == "xtts" else ("mp3", "audio/mpeg")
+    cache = _cache_path(p, text, ext)
+    try:
+        if cache.is_file():
+            return cache.read_bytes(), mime
+    except OSError:
+        pass
     try:
         if p == "xtts":
-            return _xtts(text), "audio/wav"
-        if p == "elevenlabs":
-            return _elevenlabs(text), "audio/mpeg"
-        if p == "openai":
-            return _openai(text), "audio/mpeg"
+            audio = _xtts(text)
+        elif p == "elevenlabs":
+            audio = _elevenlabs(text)
+        else:
+            audio = _openai(text)
+        if audio:
+            try:
+                cache.write_bytes(audio)
+                _cache_trim()
+            except OSError:
+                pass
+            return audio, mime
     except Exception as exc:  # network / auth / quota — fall back to browser voice
         print("[tts] %s synthesis failed: %s" % (p, exc))
     return None, None
