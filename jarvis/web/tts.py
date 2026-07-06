@@ -143,15 +143,18 @@ def _elevenlabs(text):
             return float(os.environ.get(name, default))
         except ValueError:
             return default
+    settings = {"stability": _f("ELEVENLABS_STABILITY", 0.40),
+                "similarity_boost": _f("ELEVENLABS_SIMILARITY", 0.80),
+                "style": _f("ELEVENLABS_STYLE", 0.35),
+                "use_speaker_boost": True}
+    # speaking pace: ELEVENLABS_SPEED, e.g. 0.9 = measured, 1.1 = brisk
+    if os.environ.get("ELEVENLABS_SPEED"):
+        settings["speed"] = _f("ELEVENLABS_SPEED", 1.0)
     body = json.dumps({
         "text": text,
         "model_id": model,
-        # lower stability + some style = livelier, more human intonation;
-        # tune via ELEVENLABS_STABILITY / ELEVENLABS_STYLE in .env
-        "voice_settings": {"stability": _f("ELEVENLABS_STABILITY", 0.40),
-                           "similarity_boost": _f("ELEVENLABS_SIMILARITY", 0.80),
-                           "style": _f("ELEVENLABS_STYLE", 0.35),
-                           "use_speaker_boost": True},
+        # tune via ELEVENLABS_STABILITY / _STYLE / _SPEED in .env
+        "voice_settings": settings,
     }).encode("utf-8")
     return _post(url, headers, body)
 
