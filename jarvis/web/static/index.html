@@ -704,7 +704,7 @@ body{color:var(--white);letter-spacing:.06em}
   <div id="wake" title="Hands-free: listen for the wake word">WAKE</div>
   <div id="mic" title="Click and speak one command"><svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V21h2v-3.1A7 7 0 0 0 19 11z"/></svg></div>
 </div>
-<div id="status">LINK: <b id="linkState">…</b> · <b id="wakeState">CLICK WAKE, THEN SAY “JARVIS”</b> · <b id="voiceState">VOICE: …</b> · <b id="buildTag">B24</b></div>
+<div id="status">LINK: <b id="linkState">…</b> · <b id="wakeState">CLICK WAKE, THEN SAY “JARVIS”</b> · <b id="voiceState">VOICE: …</b> · <b id="buildTag">B25</b></div>
 <div id="vignette"></div>
 <div class="hudc" id="hc-tl"></div><div class="hudc" id="hc-tr"></div>
 <div class="hudc" id="hc-bl"></div><div class="hudc" id="hc-br"></div>
@@ -735,28 +735,48 @@ class CoreOrb{
                         +0.038*Math.sin(5*ph+1.7*th+this.sd2)
                         +0.026*Math.sin(4*th+3.2*ph+this.sd3);
     this._bump=bump;
-    // particles: mostly on the shell (ball surface) + some interior for depth
+    // cluster centers: the film hologram is PATCHY — dense knots of matter
+    // joined by fibers, not an even dusting
+    this.clusters=[]; const K=14;
+    for(let k=0;k<K;k++) this.clusters.push({th:Math.acos(2*Math.random()-1),ph:Math.random()*6.2831853});
+    const gauss=()=> (Math.random()+Math.random()+Math.random()-1.5)*0.8;
+    const nearCluster=(spread)=>{ const c=this.clusters[(Math.random()*K)|0];
+      const th=Math.min(3.09,Math.max(0.05,c.th+gauss()*spread));
+      return {th,ph:c.ph+gauss()*spread/Math.max(0.25,Math.sin(th))}; };
+    // particles: 60% of the shell gathers around the clusters
     this.N=this.reduced?7000:20000; this.pts=new Array(this.N);
-    for(let i=0;i<this.N;i++){ const u=Math.random(),v=Math.random();
-      const th=Math.acos(2*u-1), ph=2*Math.PI*v;
+    for(let i=0;i<this.N;i++){
+      let th,ph;
       const shell=Math.random()<0.86;
+      if(shell&&Math.random()<0.6){ const p=nearCluster(0.30); th=p.th; ph=p.ph; }
+      else { th=Math.acos(2*Math.random()-1); ph=Math.random()*6.2831853; }
       const rr=shell?(0.9+Math.random()*0.11):(0.35+Math.random()*0.55);
       this.pts[i]={th,ph,rr,b:shell?bump(th,ph):1,sp:0.5+Math.random(),sd:Math.random()*6.28}; }
-    // filament web: random-walk fiber chains over (and through) the sphere,
-    // with synapse nodes at the joints — the tangled neural look
+    // filament web: fiber chains hugging the clusters, plus radial veins
+    // branching out from the core — the film's glowing network
     this.chains=[];
-    const CH=this.reduced?26:84;
+    const CH=this.reduced?44:150, VN=this.reduced?10:34;
     for(let c=0;c<CH;c++){
-      let th=Math.acos(2*Math.random()-1), ph=Math.random()*6.2831853;
-      const rBase=Math.random()<0.72?1.0:(0.45+Math.random()*0.42);
-      const n=8+(Math.random()*8|0), pts=[];
+      let s=Math.random()<0.7?nearCluster(0.22)
+            :{th:Math.acos(2*Math.random()-1),ph:Math.random()*6.2831853};
+      let th=s.th, ph=s.ph;
+      const rBase=Math.random()<0.78?1.0:(0.5+Math.random()*0.4);
+      const n=8+(Math.random()*9|0), pts=[];
       for(let k=0;k<n;k++){
-        pts.push({th,ph,b:rBase===1.0?bump(th,ph):1});
-        th=Math.min(3.09,Math.max(0.05,th+(Math.random()-0.5)*0.42));
-        ph+=(Math.random()-0.5)*0.55; }
-      this.chains.push({pts,r:rBase,w:0.6+Math.random(),p0:Math.random()*6.28});
+        pts.push({th,ph,rr:rBase,b:rBase===1?bump(th,ph):1});
+        th=Math.min(3.09,Math.max(0.05,th+(Math.random()-0.5)*0.34));
+        ph+=(Math.random()-0.5)*0.44; }
+      this.chains.push({pts,w:0.6+Math.random(),p0:Math.random()*6.28});
     }
-    this._proj=[];  // scratch buffer for chain projection
+    for(let v=0;v<VN;v++){
+      let th=Math.acos(2*Math.random()-1), ph=Math.random()*6.2831853;
+      const n=9, pts=[];
+      for(let k=0;k<n;k++){ const rr=0.14+(k/(n-1))*0.9;
+        pts.push({th,ph,rr,b:rr>0.92?bump(th,ph):1});
+        th=Math.min(3.09,Math.max(0.05,th+(Math.random()-0.5)*0.22));
+        ph+=(Math.random()-0.5)*0.26; }
+      this.chains.push({pts,w:0.8+Math.random(),p0:Math.random()*6.28,vein:true});
+    }
     this.B=8; this.bk=[]; for(let i=0;i<this.B;i++) this.bk.push([]);
     this.spokes=[]; const NS=this.reduced?70:150;
     for(let i=0;i<NS;i++) this.spokes.push({a:Math.random()*6.2831853,len:0.35+Math.random()*0.6,ph:Math.random()*6.28,sp:0.4+Math.random()*1.4});
@@ -829,32 +849,35 @@ class CoreOrb{
       let bi=((Z2+1)*0.5*B)|0; if(bi>=B)bi=B-1; if(bi<0)bi=0;
       bk[bi].push(cx+X*R*rf, cy+Y*R*rf); }
     for(let i=0;i<B;i++){ const t=i/(B-1), arr=bk[i];
-      x.fillStyle="rgba("+((70+t*160)|0)+","+((175+t*80)|0)+",255,"+((0.08+t*0.42)*br).toFixed(3)+")";
-      const sz=(0.85+t*1.7)*DPR*0.7, h=sz*0.5;
+      x.fillStyle="rgba("+((70+t*160)|0)+","+((175+t*80)|0)+",255,"+((0.05+t*0.55)*br).toFixed(3)+")";
+      const sz=(0.8+t*2.1)*DPR*0.7, h=sz*0.5;
       for(let j=0;j<arr.length;j+=2) x.fillRect(arr[j]-h,arr[j+1]-h,sz,sz); }
 
-    // ---- neural filament web (tangled glowing fibers + synapse nodes) ----
-    x.lineWidth=1;
+    // ---- neural filament web: glow pass + bright core pass per fiber ----
     for(const ch of this.chains){
       const flick=0.55+0.45*Math.sin(this.t*1.2*ch.w+ch.p0);
-      const P=this._proj; P.length=0;
-      let zsum=0;
+      const path=new Path2D();
+      let zsum=0, first=true, lastX=0, lastY=0;
       for(const pt of ch.pts){
         const st2=Math.sin(pt.th), ux=Math.cos(pt.ph)*st2, uy=Math.cos(pt.th), uz=Math.sin(pt.ph)*st2;
-        const rf=ch.r*pt.b*(1+Math.sin(this.t*0.9*ch.w+pt.ph)*chaos*0.6);
+        const rf=pt.rr*pt.b*(1+Math.sin(this.t*0.9*ch.w+pt.ph)*chaos*0.6);
         const X=ux*ca+uz*sa, Z=-ux*sa+uz*ca, Y=uy*ct-Z*stt, Z2=uy*stt+Z*ct;
-        zsum+=Z2; P.push(cx+X*R*rf, cy+Y*R*rf);
+        zsum+=Z2; lastX=cx+X*R*rf; lastY=cy+Y*R*rf;
+        if(first){ path.moveTo(lastX,lastY); first=false; } else path.lineTo(lastX,lastY);
       }
       const depth=(zsum/ch.pts.length+1)*0.5;              // 0 back … 1 front
-      const a=(0.10+0.40*depth)*br*flick;
-      x.strokeStyle="rgba(140,220,255,"+a.toFixed(3)+")";
-      x.beginPath(); x.moveTo(P[0],P[1]);
-      for(let k=2;k<P.length;k+=2) x.lineTo(P[k],P[k+1]);
-      x.stroke();
-      // synapse nodes at alternating joints
-      x.fillStyle="rgba(210,245,255,"+(a*1.8).toFixed(3)+")";
-      const ns=(1.1+depth*1.6)*DPR;
-      for(let k=0;k<P.length;k+=6) x.fillRect(P[k]-ns/2,P[k+1]-ns/2,ns,ns);
+      const a=(0.10+0.42*depth)*br*flick;
+      // soft halo
+      x.lineWidth=2.6*DPR;
+      x.strokeStyle="rgba(70,170,255,"+(a*0.35).toFixed(3)+")";
+      x.stroke(path);
+      // bright filament core
+      x.lineWidth=(ch.vein?1.35:0.95)*DPR;
+      x.strokeStyle="rgba(175,232,255,"+Math.min(0.85,a*1.25).toFixed(3)+")";
+      x.stroke(path);
+      // hot tip on the veins (where they meet the shell)
+      if(ch.vein){ x.fillStyle="rgba(235,250,255,"+Math.min(0.9,a*1.7).toFixed(3)+")";
+        x.beginPath(); x.arc(lastX,lastY,1.9*DPR,0,7); x.fill(); }
     }
 
     // listening ripple (blue)
@@ -882,70 +905,7 @@ class CoreOrb{
     x.fillStyle="rgba(255,255,255,"+Math.min(1,0.75*br+this.amp*0.25)+")";
     x.beginPath(); x.arc(cx,cy,cs*0.42,0,7); x.fill();
 
-    // ---- holographic gimbal (the JARVIS targeting-interface look) ----
-    const rr1=R*1.14, rr2=R*1.22;
-    // fine ring
-    x.lineWidth=1;
-    x.strokeStyle="rgba(120,205,255,"+(0.22*br)+")";
-    x.beginPath(); x.arc(cx,cy,rr1,0,7); x.stroke();
-    // graduation ticks (one path — cheap)
-    x.strokeStyle="rgba(120,205,255,"+(0.30*br)+")";
-    x.beginPath();
-    for(let k=0;k<72;k++){ const a=k*Math.PI/36, l=(k%6===0?9:4)*DPR;
-      x.moveTo(cx+Math.cos(a)*rr2, cy+Math.sin(a)*rr2);
-      x.lineTo(cx+Math.cos(a)*(rr2+l), cy+Math.sin(a)*(rr2+l)); }
-    x.stroke();
-    // paired sweep arcs, counter-rotating
-    x.lineWidth=1.6*DPR;
-    x.strokeStyle="rgba(42,212,255,"+(0.44*br)+")";
-    const a1=this.angle*0.7;
-    x.beginPath(); x.arc(cx,cy,rr1,a1,a1+1.15); x.stroke();
-    x.beginPath(); x.arc(cx,cy,rr1,a1+Math.PI,a1+Math.PI+1.15); x.stroke();
-    x.lineWidth=1;
-    x.strokeStyle="rgba(160,232,255,"+(0.28*br)+")";
-    const a2=-this.angle*0.45;
-    for(let k=0;k<3;k++){ const s0=a2+k*2.0944;
-      x.beginPath(); x.arc(cx,cy,rr2+12*DPR,s0,s0+0.55); x.stroke(); }
-    // single amber tracker — the Stark HUD's warm accent against the cyan
-    x.lineWidth=2*DPR;
-    x.strokeStyle="rgba(255,150,40,"+(0.30*br)+")";
-    const a3=this.angle*0.32+2.4;
-    x.beginPath(); x.arc(cx,cy,rr2+12*DPR,a3,a3+0.28); x.stroke();
-
-    // ---- outer machined ring assembly (the big studded dial) ----
-    const rr3=R*1.33, segs=12, segGap=0.10, segLen=Math.PI*2/segs;
-    // engraved twin rings the segments sit between
-    x.lineWidth=1;
-    x.strokeStyle="rgba(90,180,255,"+(0.14*br)+")";
-    x.beginPath(); x.arc(cx,cy,rr3-9*DPR,0,7); x.stroke();
-    x.beginPath(); x.arc(cx,cy,rr3+9*DPR,0,7); x.stroke();
-    // thick segmented band, slowly counter-rotating
-    const segA=-this.angle*0.06;
-    x.lineWidth=6.5*DPR;
-    x.strokeStyle="rgba(50,140,220,"+(0.22*br)+")";
-    for(let k=0;k<segs;k++){ const s0=segA+k*segLen+segGap/2;
-      x.beginPath(); x.arc(cx,cy,rr3,s0,s0+segLen-segGap); x.stroke(); }
-    // studs at every segment junction (bright rivet + dark core)
-    for(let k=0;k<segs;k++){ const a=segA+k*segLen;
-      const sx=cx+Math.cos(a)*rr3, sy=cy+Math.sin(a)*rr3;
-      x.fillStyle="rgba(140,215,255,"+(0.55*br)+")";
-      x.beginPath(); x.arc(sx,sy,3.4*DPR,0,7); x.fill();
-      x.fillStyle="rgba(6,16,26,0.9)";
-      x.beginPath(); x.arc(sx,sy,1.4*DPR,0,7); x.fill(); }
-    // rotating dashed halo just outside the band
-    x.lineWidth=1.4*DPR;
-    x.strokeStyle="rgba(100,195,255,"+(0.20*br)+")";
-    x.setLineDash([4*DPR,9*DPR]); x.lineDashOffset=-this.t*22*DPR;
-    x.beginPath(); x.arc(cx,cy,rr3+16*DPR,0,7); x.stroke();
-    x.setLineDash([]);
-    // compass ticks at the cardinal points
-    x.lineWidth=2*DPR;
-    x.strokeStyle="rgba(150,225,255,"+(0.35*br)+")";
-    x.beginPath();
-    for(let k=0;k<4;k++){ const a=k*Math.PI/2;
-      x.moveTo(cx+Math.cos(a)*(rr3+20*DPR),cy+Math.sin(a)*(rr3+20*DPR));
-      x.lineTo(cx+Math.cos(a)*(rr3+30*DPR),cy+Math.sin(a)*(rr3+30*DPR)); }
-    x.stroke();
+    // (no rings — the hologram floats free, like the film)
 
     requestAnimationFrame(this._loop);
   }
